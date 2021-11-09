@@ -4,6 +4,7 @@ import sys
 import numpy as np
 from stl import mesh
 import moderngl
+import glm
 from PIL import Image
 
 # Units should be in Metric.
@@ -14,7 +15,6 @@ if len(sys.argv) <= 1:
 
 stlFileName = sys.argv[1]
 model_mesh = mesh.Mesh.from_file(stlFileName)
-
 ctx = moderngl.create_standalone_context()
 
 vert_shader_file = open("./v_shader.vert")
@@ -31,18 +31,27 @@ frag_shader_file.close()
 
 prog = ctx.program(vertex_shader=vert_shader,
                    fragment_shader=frag_shader)
-line_count = 100
-z = np.linspace(-5, 1.0, line_count)
-x = np.cos(z)
-y = np.sin(z)
-r = np.ones(line_count)
+line_count = 300
+z = np.linspace(-5, 5.0, line_count)
+x = 2 * np.cos(z * 8)
+y = 2 * np.sin(z * 8)
+w = np.ones(line_count)
+r = np.zeros(line_count)
 g = np.zeros(line_count)
-b = np.zeros(line_count)
+b = np.ones(line_count)
+viewMatrix = glm.mat4
 
-vertices = np.dstack([x, y, r, g, b])
+prog["projectionMatrix"].write(glm.ortho(-10, 10, -10, 10, -8, 8))
+prog["viewMatrix"].write(glm.rotate(90, glm.vec3(1.0, 0.0, 0.0)))
+vertices = np.dstack([x, y, z, w])
+color_values = np.dstack([r, g, b])
 
 vbo = ctx.buffer(vertices.astype('f4').tobytes())
-vao = ctx.simple_vertex_array(prog, vbo, 'in_vert', 'in_color')
+color_buffer = ctx.buffer(color_values.astype('f4').tobytes())
+vao = ctx.vertex_array(prog, [
+    (vbo, '4f', 'in_vert'),
+    (color_buffer, '3f', 'in_color'),
+    ])
 
 fbo = ctx.simple_framebuffer((512, 512))
 fbo.use()
