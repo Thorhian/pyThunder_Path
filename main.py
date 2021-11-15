@@ -7,6 +7,8 @@ import moderngl
 import glm
 from PIL import Image
 
+import Helper_Functions as hf
+
 # Units should be in Metric.
 tool_diameter = float(8.0)
 if len(sys.argv) <= 1:
@@ -31,19 +33,16 @@ frag_shader_file.close()
 
 prog = ctx.program(vertex_shader=vert_shader,
                    fragment_shader=frag_shader)
+
 line_count = 300
-z = np.linspace(-5, 5.0, line_count)
-x = 2 * np.cos(z * 8)
-y = 2 * np.sin(z * 8)
-w = np.ones(line_count)
+vertices = hf.generate_helix(line_count, 20, 10)
 r = np.zeros(line_count)
 g = np.zeros(line_count)
 b = np.ones(line_count)
 viewMatrix = glm.mat4
 
-prog["projectionMatrix"].write(glm.ortho(-10, 10, -10, 10, -8, 8))
+prog["projectionMatrix"].write(glm.ortho(-20, 20, -20, 20, -15, 20))
 prog["viewMatrix"].write(glm.rotate(90, glm.vec3(1.0, 0.0, 0.0)))
-vertices = np.dstack([x, y, z, w])
 color_values = np.dstack([r, g, b])
 
 vbo = ctx.buffer(vertices.astype('f4').tobytes())
