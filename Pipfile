@@ -8,6 +8,7 @@ moderngl = "*"
 numpy = "*"
 pillow = "*"
 numpy-stl = "*"
+pyglm = "*"
 
 [dev-packages]
 
