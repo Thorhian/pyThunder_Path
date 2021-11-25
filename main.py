@@ -22,6 +22,7 @@ model_mesh = mesh.Mesh.from_file(stlFileName)
 model_size = model_mesh.vectors.size
 w = np.zeros(model_size)
 #modded_mesh = np.c_[model_mesh.vectors, w]
+image_resolution = (1024, 1024)
 
 print(model_mesh.vectors.flatten())
 
@@ -29,17 +30,8 @@ print(model_mesh.vectors.flatten())
 ctx = moderngl.create_standalone_context()
 
 #Load shader code files
-vert_shader_file = open("./v_shader.vert")
-frag_shader_file = open("./frag_shader.frag")
-
-with vert_shader_file as file:
-    vert_shader = file.read()
-
-with frag_shader_file as file:
-    frag_shader = file.read()
-
-vert_shader_file.close()
-frag_shader_file.close()
+vert_shader = hf.load_shader("./v_shader.vert")
+frag_shader = hf.load_shader("./frag_shader.frag")
 
 #Create OpenGL program with loaded shaders, compile
 prog = ctx.program(vertex_shader=vert_shader,
@@ -54,9 +46,12 @@ color_values = np.dstack([r, g, b])
 #Flatten array of vertices from the stl and prepare for opengl
 model_vertices = model_mesh.vectors.flatten().astype('f4').tobytes()
 
+#Create Texture(s)
+firstPass = ctx.texture(image_resolution, 4)
+
 #Create Orthographic Projection Matrix and View Matrix
 prog["projectionMatrix"].write(glm.ortho(-100, 100, -200, 200, -150, 200))
-prog["viewMatrix"].write(glm.rotate(np.pi, glm.vec3(1.0, 0.0, 0.0)))
+prog["viewMatrix"].write(glm.rotate(hf.deg_to_rad(40), glm.vec3(1.0, 0.0, 0.0)))
 
 #Create buffers for model vertices and color values
 vbo = ctx.buffer(model_vertices)
@@ -69,7 +64,7 @@ vao = ctx.vertex_array(prog, [
     ])
 
 #Create, use, and render to Framebuffer Object (FBO)
-fbo = ctx.simple_framebuffer((512, 512))
+fbo = ctx.framebuffer([firstPass])
 fbo.use()
 fbo.clear(0.0, 0.0, 0.0, 1.0)
 vao.render(moderngl.TRIANGLES)
