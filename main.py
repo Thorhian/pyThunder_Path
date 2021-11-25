@@ -20,11 +20,10 @@ if len(sys.argv) <= 1:
 stlFileName = sys.argv[1]
 model_mesh = mesh.Mesh.from_file(stlFileName)
 model_size = model_mesh.vectors.size
-w = np.zeros(model_size)
-#modded_mesh = np.c_[model_mesh.vectors, w]
 image_resolution = (1024, 1024)
+aspect_ratio = hf.calculate_aspect_ratio(image_resolution)
 
-print(model_mesh.vectors.flatten())
+print(aspect_ratio)
 
 #Create OpenGL context
 ctx = moderngl.create_standalone_context()
