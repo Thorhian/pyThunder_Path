@@ -72,4 +72,7 @@ fbo.clear(0.0, 0.0, 0.0, 1.0)
 vao.render(moderngl.TRIANGLES)
 
 #Render image from FBO
-Image.frombytes('RGB', fbo.size, fbo.read(), 'raw', 'RGB', 0, -1).show()
+final_render = Image.frombytes('RGB', fbo.size, fbo.read(), 'raw', 'RGB', 0, -1)
+
+final_render.save("./temp.png")
+final_render.show()
