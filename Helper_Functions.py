@@ -1,6 +1,7 @@
 import moderngl
 import glm
 import numpy as np
+import stl
 
 '''
 Generates a series of lines forming a helix.
@@ -39,3 +40,17 @@ def get_model_min_max(model):
     z_max = np.max(model.vectors[:,:,2])
 
     return (x_min, x_max, y_min, y_max, z_min, z_max)
+
+def determine_square_ortho(min_max_tuple):
+    highest_coords = np.ceil(min_max_tuple[1::2])
+    lowest_coords = np.floor(min_max_tuple[0::2])
+    abs_max = np.maximum()
+    
+    xy_midpoint = (highest_coords[0:4] + lowest_coords[0:4]) / 2
+    largest_dim = 0
+    if xy_midpoint[0] > xy_midpoint[1]:
+        largest_dim = xy_midpoint[0]
+    else:
+        largest_dim = xy_midpoint[1]
+
+    return largest_dim
