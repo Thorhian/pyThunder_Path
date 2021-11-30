@@ -68,10 +68,10 @@ model_vertices = model_mesh.vectors.flatten().astype('f4').tobytes()
 
 #Image Mesh for edge detection phase
 image_vertices = np.array([
-    -1, 1, 0, 1,
-    -1, -1, 0, 0,
-    1, 1, 1, 1,
-    1, -1, 1, 0
+    -1, 1,
+    -1, -1,
+    1, 1,
+    1, -1,
     ], dtype='f4')
 
 
@@ -105,7 +105,7 @@ vao = ctx.vertex_array(prog1, [
     ])
 
 vao2 = ctx.vertex_array(prog2, [
-    (image_vbo, '2f 2f', 'in_position', 'in_uv'),
+    (image_vbo, '2f', 'in_position'),
     ])
 
 #Create, use, and render to Framebuffer Object (FBO)
@@ -120,7 +120,7 @@ fbo2.clear(0.0, 0.0, 0.0, 1.0)
 vao2.render(moderngl.TRIANGLE_STRIP)
 
 #Render image from FBO
-final_render = Image.frombytes('RGB', fbo.size, fbo2.read(), 'raw', 'RGB', 0, -1)
+final_render = Image.frombytes('RGB', fbo2.size, fbo2.read(), 'raw', 'RGB', 0, -1)
 
 final_render.save("./temp.png")
 final_render.show()
