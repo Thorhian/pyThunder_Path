@@ -72,7 +72,7 @@ image_vertices = np.array([
     -1, -1, 0, 0,
     1, 1, 1, 1,
     1, -1, 1, 0
-    ])
+    ], dtype='f4')
 
 
 #Create Texture(s)
