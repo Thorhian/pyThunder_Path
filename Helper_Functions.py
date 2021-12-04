@@ -2,6 +2,7 @@ import moderngl
 import glm
 import numpy as np
 import stl
+import math
 
 '''
 Generates a series of lines forming a helix.
@@ -54,3 +55,11 @@ def determine_square_ortho(min_max_tuple):
         largest_dim = xy_midpoint[1]
 
     return largest_dim
+
+def bounding_box_circle(center, radius: float, target_res=0.1, margin=0):
+    top = (math.floor(center[0]), math.ceil(center[1] + radius + margin))
+    bottom = (math.floor(center[0]), math.floor(center[1] - radius - margin))
+    left = (math.floor(center[0] - radius - margin), math.floor(center[1]))
+    right = (math.ceil(center[0] + radius + margin), math.floor(center[1]))
+    
+    return (top, bottom, left, right)

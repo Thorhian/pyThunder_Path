@@ -14,6 +14,8 @@ import Helper_Functions as hf
 tool_diameter = float(8.0)
 target_res_per_pixel = 0.1 #Width/Height of each pixel
 
+print(hf.bounding_box_circle((-200.0, 400.0), 8.0))
+
 if len(sys.argv) <= 1:
     print("Please specify an STL file.\n")
     sys.exit()
@@ -123,4 +125,4 @@ vao2.render(moderngl.TRIANGLE_STRIP)
 final_render = Image.frombytes('RGB', fbo2.size, fbo2.read(), 'raw', 'RGB', 0, -1)
 
 final_render.save("./temp.png")
-final_render.show()
+#final_render.show()
