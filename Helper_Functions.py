@@ -63,3 +63,11 @@ def bounding_box_circle(center, radius: float, target_res=0.1, margin=0):
     right = (math.ceil(center[0] + radius + margin), math.floor(center[1]))
     
     return (top, bottom, left, right)
+
+def check_point_in_circle(circ_center, radius, pixel_coord):
+     pythag = (pixel_coord[0] - circ_center[0])**2 + (pixel_coord[1] - circ_center[1])**2
+
+     if pythag <= radius**2:
+        return True
+     else:
+         return False
