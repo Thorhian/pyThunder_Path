@@ -13,15 +13,44 @@ ivec4 getBoundingBox(float radius, ivec2 pixelCoords) {
     return ivec4(top, bottom, left, right);
 }
 
+bool searchForBorder(float radius, ivec4 boundingBox) {
+    for(int x = boundingBox[2]; x < boundingBox[3]; x += 1) {
+        for(int y = boundingBox[0]; y > boundingBox[1]; y -= 1) {
+            vec4 current_pix = texelFetch(prev_render, ivec2(x, y), 0);
+
+            if(!(current_pix.b > 0.98) && current_pix.r > 0.95 && current_pix.g > 0.45) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 void main() {
     ivec2 coords = ivec2(gl_FragCoord.x, gl_FragCoord.y);
     vec4 texColor = texelFetch(prev_render, coords, 0);
 
-    if(texColor.b < 0.1 && texColor.r > 0.99 && texColor.g > 0.49) {
+    if(texColor.b < 0.1) {
         ivec4 boundingBox = getBoundingBox(cutterRadius, coords);
-        texColor.r = 0.0;
-        texColor.g = 1.0;
-        outColor = texColor;
+        /*if(searchForBorder(cutterRadius, boundingBox)) {
+            texColor.r = 0.0;
+            texColor.g = 1.0;
+            outColor = texColor;
+        }
+        else {
+            texColor.g += 0.5;
+            outColor = texColor;
+        }*/
+
+        for(int x = boundingBox[2]; x < boundingBox[3]; x += 1) {
+            for(int y = boundingBox[0]; y > boundingBox[1]; y -= 1) {
+                vec4 current_pix = texelFetch(prev_render, ivec2(x, y), 0);
+
+                if(!(current_pix.b > 0.98) && current_pix.r > 0.95 && current_pix.g > 0.45) {
+                    outColor = vec4(0.0, 0.8, 0.1, 1.0);
+                }
+            }
+        }
     }
     else {
         outColor = texColor;
