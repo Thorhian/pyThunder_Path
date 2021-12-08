@@ -52,12 +52,17 @@ frag_shader = hf.load_shader("./frag_shader.frag")
 vert2_shader = hf.load_shader("./image_shader.vert")
 frag2_shader = hf.load_shader("./image_shader.frag")
 
+frag3_shader = hf.load_shader("./edge_expand.frag")
+
 #Create OpenGL programs with loaded shaders, compile
 prog1 = ctx.program(vertex_shader=vert_shader,
         fragment_shader=frag_shader)
 
 prog2 = ctx.program(vertex_shader=vert2_shader,
         fragment_shader=frag2_shader)
+
+prog3 = ctx.program(vertex_shader=vert2_shader,
+                    fragment_shader=frag3_shader)
 
 #Set model color
 r = np.zeros(model_size)
@@ -81,6 +86,9 @@ image_vertices = np.array([
 firstPass = ctx.texture(image_res, 4)
 firstPassDepth = ctx.depth_texture(image_res)
 
+secondPass = ctx.texture(image_res, 4)
+secondPassDepth = ctx.depth_texture(image_res)
+
 ctx.enable(moderngl.DEPTH_TEST)
 
 #Create Orthographic Projection Matrix and View Matrix
@@ -94,6 +102,9 @@ prog1["viewMatrix"].write(glm.rotate(hf.deg_to_rad(0), glm.vec3(1.0, 0.0, 0.0)))
 
 prog2["prev_render"] = 4
 firstPass.use(location=4)
+
+prog3["prev_render"] = 3
+secondPass.use(location=3)
 
 #Create buffers for model vertices and color values
 vbo = ctx.buffer(model_vertices)
@@ -110,19 +121,28 @@ vao2 = ctx.vertex_array(prog2, [
     (image_vbo, '2f', 'in_position'),
     ])
 
+vao3 = ctx.vertex_array(prog3, [
+    (image_vbo, '2f', 'in_position'),
+    ])
+
 #Create, use, and render to Framebuffer Object (FBO)
 fbo = ctx.framebuffer([firstPass], firstPassDepth)
 fbo.use()
 fbo.clear(0.0, 0.0, 0.0, 1.0)
 vao.render(moderngl.TRIANGLES)
 
-fbo2 = ctx.simple_framebuffer(image_res)
+fbo2 = ctx.framebuffer([secondPass], secondPassDepth)
 fbo2.use()
 fbo2.clear(0.0, 0.0, 0.0, 1.0)
 vao2.render(moderngl.TRIANGLE_STRIP)
 
+fbo3 = ctx.simple_framebuffer(image_res)
+fbo3.use()
+fbo3.clear(0.0, 0.0, 0.0, 1.0)
+vao3.render(moderngl.TRIANGLE_STRIP)
+
 #Render image from FBO
-final_render = Image.frombytes('RGB', fbo2.size, fbo2.read(), 'raw', 'RGB', 0, -1)
+final_render = Image.frombytes('RGB', fbo2.size, fbo3.read(), 'raw', 'RGB', 0, -1)
 
 final_render.save("./temp.png")
 #final_render.show()
