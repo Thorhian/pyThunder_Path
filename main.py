@@ -14,6 +14,8 @@ import Helper_Functions as hf
 tool_diameter = float(8.0)
 target_res_per_pixel = 0.1 #Width/Height of each pixel
 
+tool_radius_adjusted = (tool_diameter / 2) / target_res_per_pixel
+
 print(hf.bounding_box_circle((-200.0, 400.0), 8.0))
 
 if len(sys.argv) <= 1:
@@ -105,6 +107,8 @@ firstPass.use(location=4)
 
 prog3["prev_render"] = 3
 secondPass.use(location=3)
+
+prog3["cutterRadius"] = tool_radius_adjusted
 
 #Create buffers for model vertices and color values
 vbo = ctx.buffer(model_vertices)

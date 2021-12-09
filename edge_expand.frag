@@ -32,24 +32,11 @@ void main() {
 
     if(texColor.b < 0.1) {
         ivec4 boundingBox = getBoundingBox(cutterRadius, coords);
-        /*if(searchForBorder(cutterRadius, boundingBox)) {
-            texColor.r = 0.0;
-            texColor.g = 1.0;
-            outColor = texColor;
+        if(searchForBorder(cutterRadius, boundingBox)) {
+            outColor = vec4(0.0, 1.0, 0.0, 1.0);
         }
         else {
-            texColor.g += 0.5;
             outColor = texColor;
-        }*/
-
-        for(int x = boundingBox[2]; x < boundingBox[3]; x += 1) {
-            for(int y = boundingBox[0]; y > boundingBox[1]; y -= 1) {
-                vec4 current_pix = texelFetch(prev_render, ivec2(x, y), 0);
-
-                if(!(current_pix.b > 0.98) && current_pix.r > 0.95 && current_pix.g > 0.45) {
-                    outColor = vec4(0.0, 0.8, 0.1, 1.0);
-                }
-            }
         }
     }
     else {
