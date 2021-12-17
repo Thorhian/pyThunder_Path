@@ -40,7 +40,7 @@ class Job:
         higher_bounds_with_margin = np.ceil(rough_bounds[1::2]) + math.ceil(self.tool_diam + 5)
         return (lower_bounds_with_margin[0], higher_bounds_with_margin[0],
                 lower_bounds_with_margin[1], higher_bounds_with_margin[1],
-                lower_bounds_with_margin[2], higher_bounds_with_margin[2])
+                rough_bounds[4], rough_bounds[5])
 
     def calculate_resolution(self, bounds):
         '''
@@ -58,7 +58,7 @@ class Job:
         model_vertex_shader = hf.load_shader("./v_shader.vert")
         model_frag_shader = hf.load_shader("./frag_shader.frag")
 
-        model_render_prog = self.ctx.program(vertex_shader=model_vertex_shader,
+        self.model_render_prog = self.ctx.program(vertex_shader=model_vertex_shader,
                                              fragment_shader=model_frag_shader)
 
         image_vertex_shader = hf.load_shader("./image_shader.vert")
@@ -78,12 +78,15 @@ class Job:
         secondPass = self.ctx.texture(self.img_res, 4)
         secondPassDepth = self.ctx.depth_texture(self.img_res)
 
+        print(self.bounds[4], ',', self.bounds[5])
+
+        self.projection_matrix = glm.ortho(
+            self.bounds[0], self.bounds[1], self.bounds[2],
+            self.bounds[3], self.bounds[4] - 12, self.bounds[5] + 13)
+
         #Projection and View Matrices
-        model_render_prog["projectionMatrix"].write(
-            glm.ortho(self.bounds[0], self.bounds[1], self.bounds[2],
-                      self.bounds[3], self.bounds[4], self.bounds[5])
-        )
-        model_render_prog["viewMatrix"].write(glm.rotate(hf.deg_to_rad(0), glm.vec3(1.0, 0.0, 0.0)))
+        self.model_render_prog["projectionMatrix"].write(self.projection_matrix)
+        self.model_render_prog["viewMatrix"].write(glm.rotate(hf.deg_to_rad(0), glm.vec3(1.0, 0.0, 0.0)))
 
         #Get textures properly assigned to uniform samplers
         edge_detection_prog["prev_render"] = 4
@@ -107,15 +110,15 @@ class Job:
             1, -1,
         ], dtype='f4')
         model_verts = self.target_model.vectors.flatten().astype('f4').tobytes()
-        vbo = self.ctx.buffer(model_verts)
-        color_buffer = self.ctx.buffer(model_colors.astype('f4').tobytes())
+        self.vbo_model = self.ctx.buffer(model_verts)
+        self.color_buffer = self.ctx.buffer(model_colors.astype('f4').tobytes())
         image_vbo = self.ctx.buffer(image_vertices)
 
 
         #Create Vertex Array Objects
-        self.vao1 = self.ctx.vertex_array(model_render_prog, [
-            (vbo, '3f', 'in_vert'),
-            (color_buffer, '3f', 'in_color'),
+        self.vao1 = self.ctx.vertex_array(self.model_render_prog, [
+            (self.vbo_model, '3f', 'in_vert'),
+            (self.color_buffer, '3f', 'in_color'),
         ])
 
         self.vao2 = self.ctx.vertex_array(edge_detection_prog, [
@@ -143,3 +146,16 @@ class Job:
         self.fbo3.clear(0.0, 0.0, 0.0, 1.0)
         self.fbo3.use()
         self.vao3.render(moderngl.TRIANGLE_STRIP)
+
+    def change_ortho_matrix(self, new_depth):
+        self.model_render_prog["projectionMatrix"].write(
+            glm.ortho(self.bounds[0], self.bounds[1], self.bounds[2],
+                      self.bounds[3], self.bounds[4], new_depth)
+        )
+
+        self.vao1 = self.ctx.vertex_array(self.model_render_prog, [
+            (self.vbo_model, '3f', 'in_vert'),
+            (self.color_buffer, '3f', 'in_color'),
+        ])
+
+    #def generate_slice_coords(self, depth_of_cut):
