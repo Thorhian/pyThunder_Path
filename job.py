@@ -87,7 +87,7 @@ class Job:
 
         #Projection and View Matrices
         self.model_render_prog["projectionMatrix"].write(self.projection_matrix)
-        self.model_render_prog["viewMatrix"].write(glm.rotate(hf.deg_to_rad(0), glm.vec3(1.0, 0.0, 0.0)))
+        self.model_render_prog["viewMatrix"].write(glm.rotate(glm.radians(0), glm.vec3(1.0, 0.0, 0.0)))
 
         #Get textures properly assigned to uniform samplers
         edge_detection_prog["prev_render"] = 4
