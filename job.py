@@ -82,7 +82,8 @@ class Job:
 
         self.projection_matrix = glm.ortho(
             self.bounds[0], self.bounds[1], self.bounds[2],
-            self.bounds[3], self.bounds[4] - 12, self.bounds[5] + 13)
+            self.bounds[3], -self.bounds[5], -self.bounds[4]
+        )
 
         #Projection and View Matrices
         self.model_render_prog["projectionMatrix"].write(self.projection_matrix)
@@ -150,7 +151,7 @@ class Job:
     def change_ortho_matrix(self, new_depth):
         self.model_render_prog["projectionMatrix"].write(
             glm.ortho(self.bounds[0], self.bounds[1], self.bounds[2],
-                      self.bounds[3], self.bounds[4], new_depth)
+                      self.bounds[3], self.bounds[5], new_depth)
         )
 
         self.vao1 = self.ctx.vertex_array(self.model_render_prog, [
