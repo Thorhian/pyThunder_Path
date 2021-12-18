@@ -98,6 +98,7 @@ class Job:
         #Calculate cutter radius in pixels for edge expand algorithm
         edge_expand_prog["cutterRadius"] = (self.tool_diam / 2) / self.target_res
 
+
         #Get vertice and color data prepared
         model_size = self.target_model.vectors.size
         r = np.zeros(model_size)
@@ -176,6 +177,9 @@ class Job:
             current_depth += depth_of_cut
             if np.abs(current_depth - model_depth) < 0.05:
                 current_depth = model_depth
+
+            if current_depth > model_depth:
+                break
 
             self.change_ortho_matrix(current_depth)
             print(f"Render depth: {current_depth}")
