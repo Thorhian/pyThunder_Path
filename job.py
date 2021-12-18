@@ -82,7 +82,7 @@ class Job:
 
         self.projection_matrix = glm.ortho(
             self.bounds[0], self.bounds[1], self.bounds[2],
-            self.bounds[3], -self.bounds[5], -self.bounds[4]
+            self.bounds[3], -self.bounds[5], -self.bounds[5]
         )
 
         #Projection and View Matrices
@@ -150,8 +150,10 @@ class Job:
 
     def change_ortho_matrix(self, new_depth):
         self.model_render_prog["projectionMatrix"].write(
-            glm.ortho(self.bounds[0], self.bounds[1], self.bounds[2],
-                      self.bounds[3], self.bounds[5], new_depth)
+            glm.ortho(
+                self.bounds[0], self.bounds[1], self.bounds[2],
+                self.bounds[3], -self.bounds[5], -self.bounds[5] + new_depth
+            )
         )
 
         self.vao1 = self.ctx.vertex_array(self.model_render_prog, [
@@ -159,4 +161,34 @@ class Job:
             (self.color_buffer, '3f', 'in_color'),
         ])
 
-    #def generate_slice_coords(self, depth_of_cut):
+    def render_layers(self, depth_of_cut):
+        '''
+        Renders the different \'additive slices\' of the model according
+        to a given depth of cut. Stops at the bottom of the model.
+        TODO: Make more flexible by supplying desired final depth.
+        '''
+        current_depth = 0.0
+        model_depth = np.abs(self.bounds[5] - self.bounds[4])
+        print(f"Model Depth:{model_depth}")
+        renders = []
+
+        while current_depth <= model_depth:
+            current_depth += depth_of_cut
+            if np.abs(current_depth - model_depth) < 0.05:
+                current_depth = model_depth
+
+            self.change_ortho_matrix(current_depth)
+            print(f"Render depth: {current_depth}")
+            self.render()
+            renders.append(Image.frombytes('RGB',
+                                           self.fbo3.size,
+                                           self.fbo3.read(), 'raw', 'RGB', 0, -1))
+
+        if current_depth != model_depth:
+            print(f"Render depth: {model_depth}")
+            self.change_ortho_matrix(model_depth)
+            renders.append(Image.frombytes('RGB',
+                                           self.fbo3.size,
+                                           self.fbo3.read(), 'raw', 'RGB', 0, -1))
+
+        return renders
