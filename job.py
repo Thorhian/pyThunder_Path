@@ -46,8 +46,13 @@ class Job:
         '''
         Determines resolution of the images to be rendered.
         '''
-        return (math.ceil((bounds[1] - bounds[0]) / self.target_res),
-                math.ceil((bounds[3] - bounds[2]) / self.target_res))
+        res = (math.ceil((bounds[1] - bounds[0]) / self.target_res),
+               math.ceil((bounds[3] - bounds[2]) / self.target_res))
+        max_res = self.ctx.info.get("GL_MAX_TEXTURE_SIZE")
+        if res[0] > max_res or res[1] > max_res:
+            raise "Resolution is too high for GPU", res
+
+        return res
 
     def setup_opengl_objects(self):
         '''
