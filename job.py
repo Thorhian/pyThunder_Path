@@ -23,10 +23,10 @@ class Job:
         self.obstacles = obstacles
         self.tool_diam = tool_diam
         self.target_res = target_res
+        self.ctx = moderngl.create_standalone_context()
         self.bounds = self.calculate_bounds()
         self.img_res = self.calculate_resolution(self.bounds)
         print(self.img_res)
-        self.ctx = moderngl.create_standalone_context()
         self.setup_opengl_objects()
 
 
@@ -49,8 +49,9 @@ class Job:
         res = (math.ceil((bounds[1] - bounds[0]) / self.target_res),
                math.ceil((bounds[3] - bounds[2]) / self.target_res))
         max_res = self.ctx.info.get("GL_MAX_TEXTURE_SIZE")
+        print(f"Maximum Resolution: {max_res}")
         if res[0] > max_res or res[1] > max_res:
-            raise "Resolution is too high for GPU", res
+            raise Exception("Resolution is too high for GPU", res)
 
         return res
 
