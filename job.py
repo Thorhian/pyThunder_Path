@@ -60,19 +60,19 @@ class Job:
         '''
 
         self.ctx.enable(moderngl.DEPTH_TEST)
-        model_vertex_shader = hf.load_shader("./v_shader.vert")
-        model_frag_shader = hf.load_shader("./frag_shader.frag")
+        model_vertex_shader = hf.load_shader("./shaders/v_shader.vert")
+        model_frag_shader = hf.load_shader("./shaders/frag_shader.frag")
 
         self.model_render_prog = self.ctx.program(vertex_shader=model_vertex_shader,
                                              fragment_shader=model_frag_shader)
 
-        image_vertex_shader = hf.load_shader("./image_shader.vert")
-        edge_frag_shader = hf.load_shader("./image_shader.frag")
+        image_vertex_shader = hf.load_shader("./shaders/image_shader.vert")
+        edge_frag_shader = hf.load_shader("./shaders/image_shader.frag")
 
         edge_detection_prog = self.ctx.program(vertex_shader=image_vertex_shader,
                                                fragment_shader=edge_frag_shader)
 
-        edge_expand_frag_shader = hf.load_shader("./edge_expand.frag")
+        edge_expand_frag_shader = hf.load_shader("./shaders/edge_expand.frag")
 
         edge_expand_prog = self.ctx.program(vertex_shader=image_vertex_shader,
                                             fragment_shader=edge_expand_frag_shader)
