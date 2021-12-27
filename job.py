@@ -197,6 +197,7 @@ class Job:
         if current_depth != model_depth:
             print(f"Render depth: {model_depth}")
             self.change_ortho_matrix(model_depth)
+            self.render()
             renders.append(Image.frombytes('RGB',
                                            self.fbo3.size,
                                            self.fbo3.read(), 'raw', 'RGB', 0, -1))
