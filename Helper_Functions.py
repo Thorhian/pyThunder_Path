@@ -64,6 +64,28 @@ def bounding_box_circle(center, radius: float, target_res=0.1, margin=0):
     
     return (top, bottom, left, right)
 
+def double_circle_bbox(center1, radius1: float, center2, radius2: float):
+    '''
+    Takes two circles, represented by their center coordinates and
+    radii, and calculates a bounding box containing both circles.
+    '''
+    top_circ1 = math.ceil(center1[1] + radius1)
+    bottom_circ1 = math.floor(center1[1] - radius1)
+    left_circ1 = math.floor(center1[0] - radius1)
+    right_circ1 = math.ceil(center1[0] + radius1)
+
+    top_circ2 = math.ceil(center2[1] + radius2)
+    bottom_circ2 = math.floor(center2[1] - radius2)
+    left_circ2 = math.floor(center2[0] - radius2)
+    right_circ2 = math.ceil(center2[0] + radius2)
+
+    top = top_circ1 if top_circ1 > top_circ2 else top_circ2
+    bottom = bottom_circ1 if bottom_circ1 < bottom_circ2 else bottom_circ2
+    left = left_circ1 if left_circ1 < left_circ2 else left_circ2
+    right = right_circ1 if right_circ1 > right_circ2 else right_circ2
+
+    return (top, bottom, left, right)
+
 def check_point_in_circle(circ_center, radius, pixel_coord):
     pythag = (pixel_coord[0] - circ_center[0])**2 + (pixel_coord[1] - circ_center[1])**2
 
