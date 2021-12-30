@@ -9,10 +9,12 @@ numpy = "*"
 pillow = "*"
 numpy-stl = "*"
 pyglm = "*"
+pyflakes = "*"
+memory-profiler = "*"
 
 [dev-packages]
 ipython = "*"
 memory-profiler = "*"
 
 [requires]
-python_version = "3.9"
+python_version = "3.10"
