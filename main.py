@@ -12,7 +12,7 @@ import Helper_Functions as hf
 target_res_per_pixel = 0.1 #Width/Height of each pixel
 
 for arg in sys.argv:
-    if arg == '--help' or '-h':
+    if arg == '--help' or arg == '-h':
         hf.print_help()
         sys.exit()
 
