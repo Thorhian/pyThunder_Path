@@ -40,10 +40,11 @@ class DiscretizedModel:
         self.images.append(image)
         self.heights.append(height)
 
-    def check_cut(self, center1, center2, radius, height):
+    def __check_cut(self, center1, center2, radius, height):
         '''
         Checks pixels in an image where a given tool path
         (represented by two circles of the same radius) is located.
         Amount of various pixels are returned in a dictionary.
         '''
+        search_bounds = hf.double_circle_bbox(center1, radius, center2, radius)
         return 0

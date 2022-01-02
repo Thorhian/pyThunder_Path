@@ -4,6 +4,9 @@ import numpy as np
 import stl
 import math
 
+def print_help():
+    print("File, Depth of Cut, Tool Diameter (all units in mm).")
+
 '''
 Generates a series of lines forming a helix.
 '''

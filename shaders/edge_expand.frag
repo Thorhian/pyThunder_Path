@@ -13,12 +13,22 @@ ivec4 getBoundingBox(float radius, ivec2 pixelCoords) {
     return ivec4(top, bottom, left, right);
 }
 
-bool searchForBorder(float radius, ivec4 boundingBox) {
+bool isInsideCircle(float radius, ivec2 centerCoords, ivec2 pixelCoords) {
+    float leftSide = pow(pixelCoords[0] - centerCoords[0], 2) +
+        pow(pixelCoords[1] - centerCoords[1], 2);
+
+    return (leftSide < pow(radius, 2));
+}
+
+bool searchForBorder(float radius, ivec4 boundingBox, ivec2 currentCoord) {
     for(int x = boundingBox[2]; x < boundingBox[3]; x += 1) {
         for(int y = boundingBox[0]; y > boundingBox[1]; y -= 1) {
             vec4 current_pix = texelFetch(prev_render, ivec2(x, y), 0);
 
-            if(!(current_pix.b > 0.98) && current_pix.r > 0.95 && current_pix.g > 0.45) {
+            if(!(current_pix.b > 0.98)
+               && current_pix.r > 0.95
+               && current_pix.g > 0.45
+               && isInsideCircle(radius, ivec2(x, y), currentCoord)) {
                 return true;
             }
         }
@@ -32,7 +42,7 @@ void main() {
 
     if(texColor.b < 0.1) {
         ivec4 boundingBox = getBoundingBox(cutterRadius, coords);
-        if(searchForBorder(cutterRadius, boundingBox)) {
+        if(searchForBorder(cutterRadius, boundingBox, coords)) {
             outColor = vec4(0.0, 1.0, 0.0, 1.0);
         }
         else {

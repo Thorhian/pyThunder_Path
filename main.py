@@ -6,9 +6,15 @@ from stl import mesh
 from PIL import Image
 
 from job import Job
+import Helper_Functions as hf
 
 # Units should be in Metric.
 target_res_per_pixel = 0.1 #Width/Height of each pixel
+
+for arg in sys.argv:
+    if arg == '--help' or arg == '-h':
+        hf.print_help()
+        sys.exit()
 
 if len(sys.argv) <= 3:
     print("Please specify an STL file, depth of cut, and tool diameter (in mm).\n")
