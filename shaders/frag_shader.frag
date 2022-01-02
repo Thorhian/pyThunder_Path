@@ -1,8 +1,8 @@
 #version 330
 
-in vec3 v_color;
+in vec4 v_color;
 
-out vec3 f_color;
+out vec4 f_color;
 
 float near = 0.1;
 float far = 20;
@@ -15,6 +15,6 @@ float LinearizeDepth(float depth)
 }
 
 void main() {
-    vec3 newColor = vec3(v_color.r +  sqrt(gl_FragCoord.z), v_color.gb);
+    vec4 newColor = vec4(v_color.r +  sqrt(gl_FragCoord.z), v_color.gba);
     f_color = newColor;
 }

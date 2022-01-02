@@ -31,7 +31,7 @@ if not os.path.exists("renders"):
 counter = 0
 for render in job_renders:
     print(f"Saving image {counter}")
-    image = Image.frombytes('RGB', newJob.fbo3.size,
-                            render, 'raw', 'RGB', 0, -1)
+    image = Image.frombytes('RGBA', newJob.fbo3.size,
+                            render, 'raw', 'RGBA', 0, -1)
     image.save(f"./renders/layer{counter}.png")
     counter += 1

@@ -1,9 +1,9 @@
 #version 330
 
 in vec3 in_vert;
-in vec3 in_color;
+in vec4 in_color;
 
-out vec3 v_color;
+out vec4 v_color;
 
 uniform mat4 projectionMatrix;
 uniform mat4 viewMatrix;

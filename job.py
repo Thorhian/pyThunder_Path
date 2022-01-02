@@ -110,7 +110,8 @@ class Job:
         r = np.zeros(model_size)
         g = np.zeros(model_size)
         b = np.ones(model_size)
-        model_colors = np.dstack([r, g, b])
+        a = np.ones(model_size)
+        model_colors = np.dstack([r, g, b, a])
         image_vertices = np.array([
             -1, 1,
             -1, -1,
@@ -126,7 +127,7 @@ class Job:
         #Create Vertex Array Objects
         self.vao1 = self.ctx.vertex_array(self.model_render_prog, [
             (self.vbo_model, '3f', 'in_vert'),
-            (self.color_buffer, '3f', 'in_color'),
+            (self.color_buffer, '4f', 'in_color'),
         ])
 
         self.vao2 = self.ctx.vertex_array(edge_detection_prog, [
@@ -140,15 +141,15 @@ class Job:
         self.fbo1 = self.ctx.framebuffer([firstPass], firstPassDepth)
         self.fbo2 = self.ctx.framebuffer([secondPass], secondPassDepth)
         self.fbo3 = self.ctx.simple_framebuffer(self.img_res)
-        self.fbo1.clear(0.0, 0.0, 0.0, 1.0)
-        self.fbo2.clear(0.0, 0.0, 0.0, 1.0)
-        self.fbo3.clear(0.0, 0.0, 0.0, 1.0)
+        self.fbo1.clear(0.0, 0.0, 0.0, 0.0)
+        self.fbo2.clear(0.0, 0.0, 0.0, 0.0)
+        self.fbo3.clear(0.0, 0.0, 0.0, 0.0)
 
     def render(self):
-        self.fbo1.clear(0.0, 0.0, 0.0, 1.0)
+        self.fbo1.clear(0.0, 0.0, 0.0, 0.0)
         self.fbo1.use()
         self.vao1.render(moderngl.TRIANGLES)
-        self.fbo2.clear(0.0, 0.0, 0.0, 1.0)
+        self.fbo2.clear(0.0, 0.0, 0.0, 0.0)
         self.fbo2.use()
         self.vao2.render(moderngl.TRIANGLE_STRIP)
         self.fbo3.clear(0.0, 0.0, 0.0, 1.0)
@@ -165,7 +166,7 @@ class Job:
 
         self.vao1 = self.ctx.vertex_array(self.model_render_prog, [
             (self.vbo_model, '3f', 'in_vert'),
-            (self.color_buffer, '3f', 'in_color'),
+            (self.color_buffer, '4f', 'in_color'),
         ])
 
     def render_layers(self, depth_of_cut):
@@ -190,12 +191,12 @@ class Job:
             self.change_ortho_matrix(current_depth)
             print(f"Render depth: {current_depth}")
             self.render()
-            renders.append(self.fbo3.read())
+            renders.append(self.fbo3.read(components=4, dtype='f1'))
 
         if current_depth != model_depth:
             print(f"Render depth: {model_depth}")
             self.change_ortho_matrix(model_depth)
             self.render()
-            renders.append(self.fbo3.read())
+            renders.append(self.fbo3.read(components=4, dtype='f1'))
 
         return renders
