@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import numpy as np
+import Helper_Functions as hf
 
 class DiscretizedModel:
     '''
@@ -40,7 +41,7 @@ class DiscretizedModel:
         self.images.append(image)
         self.heights.append(height)
 
-    def __check_cut(self, center1, center2, radius, image_indice):
+    def check_cut(self, center1, center2, radius, image_indice):
         '''
         Checks pixels in an image where a given tool path
         (represented by two circles of the same radius) is located.
@@ -48,6 +49,16 @@ class DiscretizedModel:
         '''
         search_bounds = hf.double_circle_bbox(center1, radius, center2, radius)
         material_counter = dict()
+
+        x = search_bounds[2]
+        y = search_bounds[1]
+        print(type(x), type(y), type(image_indice))
+        while x < search_bounds[3]:
+            while y < search_bounds[0]:
+                print(self.images[image_indice][x][y])
+                y += 1
+
+            x += 1
 
 
         return material_counter

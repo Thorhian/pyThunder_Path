@@ -83,6 +83,8 @@ class Job:
         firstPassDepth = self.ctx.depth_texture(self.img_res)
         secondPass = self.ctx.texture(self.img_res, 4)
         secondPassDepth = self.ctx.depth_texture(self.img_res)
+        thirdPass = self.ctx.texture(self.img_res, 4)
+        thirdPassDepth = self.ctx.depth_texture(self.img_res)
 
         print(self.bounds[4], ',', self.bounds[5])
 
@@ -140,7 +142,7 @@ class Job:
 
         self.fbo1 = self.ctx.framebuffer([firstPass], firstPassDepth)
         self.fbo2 = self.ctx.framebuffer([secondPass], secondPassDepth)
-        self.fbo3 = self.ctx.simple_framebuffer(self.img_res)
+        self.fbo3 = self.ctx.framebuffer([thirdPass], thirdPassDepth)
         self.fbo1.clear(0.0, 0.0, 0.0, 0.0)
         self.fbo2.clear(0.0, 0.0, 0.0, 0.0)
         self.fbo3.clear(0.0, 0.0, 0.0, 0.0)
@@ -149,12 +151,15 @@ class Job:
         self.fbo1.clear(0.0, 0.0, 0.0, 0.0)
         self.fbo1.use()
         self.vao1.render(moderngl.TRIANGLES)
+        self.ctx.finish()
         self.fbo2.clear(0.0, 0.0, 0.0, 0.0)
         self.fbo2.use()
         self.vao2.render(moderngl.TRIANGLE_STRIP)
+        self.ctx.finish()
         self.fbo3.clear(0.0, 0.0, 0.0, 1.0)
         self.fbo3.use()
         self.vao3.render(moderngl.TRIANGLE_STRIP)
+        self.ctx.finish()
 
     def change_ortho_matrix(self, new_depth):
         self.model_render_prog["projectionMatrix"].write(
