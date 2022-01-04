@@ -15,6 +15,7 @@ memory-profiler = "*"
 [dev-packages]
 ipython = "*"
 memory-profiler = "*"
+python-language-server = "*"
 
 [requires]
 python_version = "3.10"
