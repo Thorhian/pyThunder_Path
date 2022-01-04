@@ -6,10 +6,11 @@ import numpy as np
 from stl import mesh
 import moderngl
 import glm
+import os
 from PIL import Image
 
 import Helper_Functions as hf
-
+from Discretized_Model import DiscretizedModel
 
 class Job:
     '''
@@ -28,6 +29,7 @@ class Job:
         self.img_res = self.calculate_resolution(self.bounds)
         print(self.img_res)
         self.setup_opengl_objects()
+        self.d_model = DiscretizedModel(target_res)
 
 
     def calculate_bounds(self):
@@ -151,11 +153,9 @@ class Job:
         self.fbo1.clear(0.0, 0.0, 0.0, 0.0)
         self.fbo1.use()
         self.vao1.render(moderngl.TRIANGLES)
-        self.ctx.finish()
         self.fbo2.clear(0.0, 0.0, 0.0, 0.0)
         self.fbo2.use()
         self.vao2.render(moderngl.TRIANGLE_STRIP)
-        self.ctx.finish()
         self.fbo3.clear(0.0, 0.0, 0.0, 1.0)
         self.fbo3.use()
         self.vao3.render(moderngl.TRIANGLE_STRIP)
@@ -183,7 +183,6 @@ class Job:
         current_depth = 0.0
         model_depth = np.abs(self.bounds[5] - self.bounds[4])
         print(f"Model Depth:{model_depth}")
-        renders = []
 
         while current_depth <= model_depth:
             current_depth += depth_of_cut
@@ -196,12 +195,29 @@ class Job:
             self.change_ortho_matrix(current_depth)
             print(f"Render depth: {current_depth}")
             self.render()
-            renders.append(self.fbo3.read(components=4, dtype='f1'))
+            image = np.frombuffer(self.fbo3.read(components=4, dtype='f1'),
+                                  dtype='u1')
+            image = np.reshape(image, (self.img_res[1], self.img_res[0], 4))
+            image = np.flip(image, 0)
+            self.d_model.add_layer(image,current_depth)
 
         if current_depth != model_depth:
             print(f"Render depth: {model_depth}")
             self.change_ortho_matrix(model_depth)
             self.render()
-            renders.append(self.fbo3.read(components=4, dtype='f1'))
+            image = np.frombuffer(self.fbo3.read(components=4, dtype='f1'),
+                                  dtype='u1')
+            image = np.reshape(image, (self.img_res[1], self.img_res[0], 4))
+            image = np.flip(image, 0)
+            self.d_model.add_layer(image,current_depth)
 
-        return renders
+    def save_images(self):
+        if not os.path.exists("renders"):
+            os.makedirs("renders")
+
+        counter = 0
+        for render in self.d_model.images:
+            print(f"Saving image {counter}")
+            image = Image.fromarray(render)
+            image.save(f"./renders/layer{counter}.png")
+            counter += 1
