@@ -46,19 +46,28 @@ class DiscretizedModel:
         Checks pixels in an image where a given tool path
         (represented by two circles of the same radius) is located.
         Amount of various pixels are returned in a dictionary.
+
+        TODO: Add circle and rectangle bounds checks next.
         '''
         search_bounds = hf.double_circle_bbox(center1, radius, center2, radius)
+        image_shape = self.images[image_indice].shape
+        print(image_shape)
         material_counter = dict()
+        material_counter["stock"] = 0
 
         x = search_bounds[2]
         y = search_bounds[1]
         print(type(x), type(y), type(image_indice))
-        while x < search_bounds[3]:
-            while y < search_bounds[0]:
-                print(self.images[image_indice][x][y])
-                y += 1
+        while y < search_bounds[0] or y < image_shape[0]:
+            x = search_bounds[2]
+            while x < search_bounds[3] or x < image_shape[1]:
+                current_pixel = self.images[image_indice][y][x]
+                if current_pixel[3] > 0 and current_pixel[2] == 255:
+                    material_counter["stock"] += 1
 
-            x += 1
+                x += 1
+
+            y += 1
 
 
         return material_counter
