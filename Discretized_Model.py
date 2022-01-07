@@ -71,3 +71,30 @@ class DiscretizedModel:
 
 
         return material_counter
+
+    def __check_circle(center, radius, pixel_coords):
+        eq_left_side = pow(pixel_coords[0] - center[0], 2) + pow(pixel_coords[1] - center[1], 2)
+
+        return (eq_left_side < pow(radius, 2))
+
+    def __check_rectangle(rect_points):
+
+        return
+
+    def __find_rectangle_points(center1, center2, radius):
+        translated_cent1 = np.array(center1) - np.array(center2)
+        translated_cent2 = np.array(center2) - np.array(center1)
+
+        norm_rad1 = (translated_cent1 / np.linalg.norm(translated_cent1)) * radius
+        norm_rad2 = (translated_cent2 / np.linalg.norm(translated_cent1)) * radius
+
+        trans_point1 = (norm_rad1[1], -norm_rad1[0])
+        trans_point2 = (-norm_rad1[1], norm_rad1[0])
+        trans_point3 = (norm_rad2[1], -norm_rad2[0])
+        trans_point4 = (-norm_rad2[1], norm_rad2[0])
+
+        return np.array([trans_point1, trans_point2, trans_point3, trans_point4])
+
+    def check_point_capsule(center1, center2, radius, point):
+
+        return false
