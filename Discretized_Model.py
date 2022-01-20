@@ -46,23 +46,22 @@ class DiscretizedModel:
         Checks pixels in an image where a given tool path
         (represented by two circles of the same radius) is located.
         Amount of various pixels are returned in a dictionary.
-
-        TODO: Add circle and rectangle bounds checks next.
         '''
         search_bounds = hf.double_circle_bbox(center1, radius, center2, radius)
         image_shape = self.images[image_indice].shape
         print(image_shape)
         material_counter = dict()
         material_counter["stock"] = 0
+        img_res = self.images[image_indice].shape
 
-        x = search_bounds[2]
-        y = search_bounds[1]
+        x = np.clip(search_bounds[2], 0, img_res[1])
+        y = np.clip(search_bounds[1], 0, img_res[0])
         print(type(x), type(y), type(image_indice))
         while y < search_bounds[0] or y < image_shape[0]:
             x = search_bounds[2]
             while x < search_bounds[3] or x < image_shape[1]:
                 current_pixel = self.images[image_indice][y][x]
-                if current_pixel[3] > 0 and current_pixel[2] == 255:
+                if current_pixel[3] > 0 and current_pixel[2] == 255 and self.check_in_capsule(center1, center2, radius, (x, y)):
                     material_counter["stock"] += 1
 
                 x += 1
@@ -72,29 +71,72 @@ class DiscretizedModel:
 
         return material_counter
 
-    def __check_circle(center, radius, pixel_coords):
-        eq_left_side = pow(pixel_coords[0] - center[0], 2) + pow(pixel_coords[1] - center[1], 2)
 
-        return (eq_left_side < pow(radius, 2))
+    def check_in_capsule(self, center1, center2, radius, point):
+        if not self.check_in_circle(center1, radius, point):
+            if not self.check_in_circle(center2, radius, point):
+                rect_verts = self.find_rectangle_points(center1, center2, radius)
+                if not self.check_in_rectangle(rect_verts, point):
+                    return False
 
-    def __check_rectangle(rect_points):
+        return True
 
-        return
-
-    def __find_rectangle_points(center1, center2, radius):
+    def find_rectangle_points(self, center1, center2, radius):
         translated_cent1 = np.array(center1) - np.array(center2)
         translated_cent2 = np.array(center2) - np.array(center1)
 
         norm_rad1 = (translated_cent1 / np.linalg.norm(translated_cent1)) * radius
-        norm_rad2 = (translated_cent2 / np.linalg.norm(translated_cent1)) * radius
+        norm_rad2 = (translated_cent2 / np.linalg.norm(translated_cent2)) * radius
 
-        trans_point1 = (norm_rad1[1], -norm_rad1[0])
-        trans_point2 = (-norm_rad1[1], norm_rad1[0])
-        trans_point3 = (norm_rad2[1], -norm_rad2[0])
-        trans_point4 = (-norm_rad2[1], norm_rad2[0])
+        trans_point1 = (norm_rad1[1], -norm_rad1[0]) + np.array(center2)
+        trans_point2 = (-norm_rad1[1], norm_rad1[0]) + np.array(center2)
+        trans_point3 = (norm_rad2[1], -norm_rad2[0]) + np.array(center1)
+        trans_point4 = (-norm_rad2[1], norm_rad2[0]) + np.array(center1)
 
         return np.array([trans_point1, trans_point2, trans_point3, trans_point4])
 
-    def check_point_capsule(center1, center2, radius, point):
 
-        return false
+    def check_in_circle(self, center, radius, pixel_coords):
+        eq_left_side = pow(pixel_coords[0] - center[0], 2) + pow(pixel_coords[1] - center[1], 2)
+
+        return (eq_left_side < pow(radius, 2))
+
+    '''
+
+    https://stackoverflow.com/questions/2752725/finding-whether-a-point-lies-inside-a-rectangle-or-not
+    '''
+    def check_in_rectangle(self, rect_points, point):
+        sorted_indices = self.sort_rectangle_verts(rect_points)
+
+        i = 0
+        while i < 4:
+            v1 = rect_points[sorted_indices[i]]
+            v2 = rect_points[sorted_indices[(i + 1) % 4]]
+            d = (v2[0] - v1[0]) * (point[1] - v1[1]) - (point[0] - v1[0]) * (v2[1] - v1[1])
+
+            if d < 0:
+                return False
+
+            i += 1
+
+        return True
+
+    def sort_rectangle_verts(self, vertices):
+        avg_center = np.add.reduce(vertices) / 4
+
+        offset_verts = vertices + avg_center
+        polar_rotations = np.zeros(4)
+
+        i = 0
+        while i < 4:
+            rotation = np.rad2deg(np.arctan2(offset_verts[i][1],
+                                             offset_verts[i][0]))
+
+            if rotation < 0:
+                rotation = 360 + rotation
+
+            polar_rotations[i] = rotation
+            i += 1
+
+
+        return np.argsort(polar_rotations)
