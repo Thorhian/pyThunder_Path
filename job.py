@@ -18,9 +18,10 @@ class Job:
     and generating tool paths when a generator is provided.
     '''
 
-    def __init__(self, target_model, obstacles: list, tool_diam: float,
-                 target_res: float = 0.1):
+    def __init__(self, target_model, stock_model, obstacles: list,
+                 tool_diam: float, target_res: float = 0.1):
         self.target_model = target_model
+        self.stock_model = stock_model
         self.obstacles = obstacles
         self.tool_diam = tool_diam
         self.target_res = target_res
@@ -111,20 +112,31 @@ class Job:
 
         #Get vertice and color data prepared
         model_size = self.target_model.vectors.size
+        stock_size = self.stock_model.size
         r = np.zeros(model_size)
         g = np.zeros(model_size)
         b = np.ones(model_size)
         a = np.ones(model_size)
         model_colors = np.dstack([r, g, b, a])
+        rStock = np.zeros(stock_size)
+        gStock = np.zeros(stock_size)
+        bStock = np.zeros(stock_size)
+        aStock = np.ones(stock_size)
+        stock_colors = np.dstack([rStock, gStock, bStock, aStock])
+        print(model_colors, stock_colors.shape)
         image_vertices = np.array([
             -1, 1,
             -1, -1,
             1, 1,
             1, -1,
         ], dtype='f4')
-        model_verts = self.target_model.vectors.flatten().astype('f4').tobytes()
-        self.vbo_model = self.ctx.buffer(model_verts)
-        self.color_buffer = self.ctx.buffer(model_colors.astype('f4').tobytes())
+        model_verts = self.target_model.vectors.flatten().astype('f4')
+        stock_verts = self.stock_model.flatten().astype('f4')
+        rendered_verts = np.concatenate((model_verts, stock_verts)).astype('f4').tobytes()
+        all_colors = np.concatenate((model_colors.flatten(), stock_colors.flatten())).astype('f4').tobytes()
+
+        self.vbo_model = self.ctx.buffer(rendered_verts)
+        self.color_buffer = self.ctx.buffer(all_colors)
         image_vbo = self.ctx.buffer(image_vertices)
 
 
