@@ -7,3 +7,5 @@ The software written here was inpsired by this paper,
 "Automated CNC Tool Path Planning andMachining Simulation on 
 Highly ParallelComputing Architectures": https://tigerprints.clemson.edu/cgi/viewcontent.cgi?article=2780&context=all_dissertations
 
+If you feel like donating to a noob, you can send Monero to this address:
+88Y9jHCrN9vTcWCsBF4gWy5PPEKANvsq7MCR95s2bXch1wBbDNqW21FhLP8xheJitQHkW9FSrRHAp57BpAppUfB9MfTMtf3
