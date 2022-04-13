@@ -1,3 +1,4 @@
 env
 temp.png
 renders/
+__pycache__
