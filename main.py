@@ -8,7 +8,7 @@ import Helper_Functions as hf
 import geometry_gens
 
 # Units should be in Metric.
-target_res_per_pixel = 0.5 #Width/Height of each pixel
+target_res_per_pixel = 0.2 #Width/Height of each pixel
 
 for arg in sys.argv:
     if arg == '--help' or arg == '-h':
@@ -26,7 +26,7 @@ model_mesh = mesh.Mesh.from_file(stlFileName, speedups=False)
 depth_of_cut = float(sys.argv[2])
 tool_diameter = float(sys.argv[3])
 
-stock_dims = (-20, 20, -20, 20, -10, 10)
+stock_dims = (-50, 50, -80, 80, 0, 31.75)
 stock_model = geometry_gens.generate_box(stock_dims)
 
 newJob = Job(model_mesh, stock_model, [],
