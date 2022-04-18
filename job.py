@@ -83,6 +83,7 @@ class Job:
 
         #Create Textures
         firstPass = self.ctx.texture(self.img_res, 4)
+        stockPassDepth = self.ctx.depth_texture(self.img_res)
         firstPassDepth = self.ctx.depth_texture(self.img_res)
         secondPass = self.ctx.texture(self.img_res, 4)
         secondPassDepth = self.ctx.depth_texture(self.img_res)
@@ -117,12 +118,12 @@ class Job:
         g = np.zeros(model_size)
         b = np.ones(model_size)
         a = np.ones(model_size)
-        model_colors = np.dstack([r, g, b, a])
+        model_colors = np.dstack([r, g, b, a]).flatten().astype('f4')
         rStock = np.zeros(stock_size)
         gStock = np.zeros(stock_size)
         bStock = np.zeros(stock_size)
         aStock = np.ones(stock_size)
-        stock_colors = np.dstack([rStock, gStock, bStock, aStock])
+        stock_colors = np.dstack([rStock, gStock, bStock, aStock]).flatten().astype('f4')
         print(model_colors, stock_colors.shape)
         image_vertices = np.array([
             -1, 1,
@@ -132,13 +133,19 @@ class Job:
         ], dtype='f4')
         model_verts = self.target_model.vectors.flatten().astype('f4')
         stock_verts = self.stock_model.flatten().astype('f4')
-        rendered_verts = np.concatenate((model_verts, stock_verts)).astype('f4').tobytes()
-        all_colors = np.concatenate((model_colors.flatten(), stock_colors.flatten())).astype('f4').tobytes()
+        #rendered_verts = np.concatenate((model_verts, stock_verts)).astype('f4')
+        #all_colors = np.concatenate((model_colors.flatten(), stock_colors.flatten())).astype('f4')
 
-        self.vbo_model = self.ctx.buffer(rendered_verts)
-        self.color_buffer = self.ctx.buffer(all_colors)
+        self.vbo_model = self.ctx.buffer(model_verts)
+        self.color_buffer = self.ctx.buffer(model_colors)
+        self.vbo_stock = self.ctx.buffer(stock_verts)
+        self.color_stock = self.ctx.buffer(stock_colors)
         image_vbo = self.ctx.buffer(image_vertices)
 
+        self.vao_stock = self.ctx.vertex_array(self.model_render_prog, [
+            (self.vbo_stock, '3f', 'in_vert'),
+            (self.color_stock, '4f', 'in_color'),
+        ])
 
         #Create Vertex Array Objects
         self.vao1 = self.ctx.vertex_array(self.model_render_prog, [
@@ -154,6 +161,7 @@ class Job:
             (image_vbo, '2f', 'in_position'),
         ])
 
+        self.fbo_stock = self.ctx.framebuffer([firstPass], stockPassDepth)
         self.fbo1 = self.ctx.framebuffer([firstPass], firstPassDepth)
         self.fbo2 = self.ctx.framebuffer([secondPass], secondPassDepth)
         self.fbo3 = self.ctx.framebuffer([thirdPass], thirdPassDepth)
@@ -162,13 +170,15 @@ class Job:
         self.fbo3.clear(0.0, 0.0, 0.0, 0.0)
 
     def render(self):
-        self.fbo1.clear(0.0, 0.0, 0.0, 0.0)
+        self.fbo_stock.clear()
+        self.fbo_stock.use()
+        self.vao_stock.render(moderngl.TRIANGLES)
         self.fbo1.use()
         self.vao1.render(moderngl.TRIANGLES)
         self.fbo2.clear(0.0, 0.0, 0.0, 0.0)
         self.fbo2.use()
         self.vao2.render(moderngl.TRIANGLE_STRIP)
-        self.fbo3.clear(0.0, 0.0, 0.0, 1.0)
+        self.fbo3.clear(0.0, 0.0, 0.0, 0.0)
         self.fbo3.use()
         self.vao3.render(moderngl.TRIANGLE_STRIP)
         self.ctx.finish()
