@@ -177,7 +177,7 @@ class Job:
         self.model_render_prog["projectionMatrix"].write(
             glm.ortho(
                 self.bounds[0], self.bounds[1], self.bounds[2],
-                self.bounds[3], -self.bounds[5], -self.bounds[5] + new_depth
+                self.bounds[3], -self.bounds[5] - 1, -self.bounds[5] + new_depth
             )
         )
 
