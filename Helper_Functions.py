@@ -37,7 +37,6 @@ def get_model_min_max(model):
 def determine_square_ortho(min_max_tuple):
     highest_coords = np.ceil(min_max_tuple[1::2])
     lowest_coords = np.floor(min_max_tuple[0::2])
-    abs_max = np.maximum()
     
     xy_midpoint = (highest_coords[0:4] + lowest_coords[0:4]) / 2
     largest_dim = 0

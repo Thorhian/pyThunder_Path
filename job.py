@@ -51,9 +51,9 @@ class Job:
         '''
         res = (math.ceil((bounds[1] - bounds[0]) / self.target_res),
                math.ceil((bounds[3] - bounds[2]) / self.target_res))
-        max_res = self.ctx.info.get("GL_MAX_TEXTURE_SIZE")
+        max_res = self.ctx.info["GL_MAX_TEXTURE_SIZE"]
         print(f"Maximum Resolution: {max_res}")
-        if res[0] > max_res or res[1] > max_res:
+        if res[0] > max_res or res[1] > max_res: #type: ignore
             raise Exception("Resolution is too high for GPU", res)
 
         return res
@@ -67,8 +67,8 @@ class Job:
         model_vertex_shader = hf.load_shader("./shaders/v_shader.vert")
         model_frag_shader = hf.load_shader("./shaders/frag_shader.frag")
 
-        self.model_render_prog = self.ctx.program(vertex_shader=model_vertex_shader,
-                                             fragment_shader=model_frag_shader)
+        self.model_render_prog : moderngl.Program = self.ctx.program(vertex_shader=model_vertex_shader,
+                                                                     fragment_shader=model_frag_shader)
 
         image_vertex_shader = hf.load_shader("./shaders/image_shader.vert")
         edge_frag_shader = hf.load_shader("./shaders/image_shader.frag")
@@ -98,8 +98,8 @@ class Job:
         )
 
         #Projection and View Matrices
-        self.model_render_prog["projectionMatrix"].write(self.projection_matrix)
-        self.model_render_prog["viewMatrix"].write(glm.rotate(glm.radians(0), glm.vec3(1.0, 0.0, 0.0)))
+        self.model_render_prog["projectionMatrix"].write(self.projection_matrix) #type: ignore
+        self.model_render_prog["viewMatrix"].write(glm.rotate(glm.radians(0), glm.vec3(1.0, 0.0, 0.0))) #type: ignore
 
         #Get textures properly assigned to uniform samplers
         edge_detection_prog["prev_render"] = 4
@@ -184,7 +184,7 @@ class Job:
         self.ctx.finish()
 
     def change_ortho_matrix(self, new_depth):
-        self.model_render_prog["projectionMatrix"].write(
+        self.model_render_prog["projectionMatrix"].write( #type: ignore
             glm.ortho(
                 self.bounds[0], self.bounds[1], self.bounds[2],
                 self.bounds[3], -self.bounds[5] - 1, -self.bounds[5] + new_depth

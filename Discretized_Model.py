@@ -18,7 +18,7 @@ class DiscretizedModel:
                             Pixel[0][0] is not neccesarily X = 0.0 and Y = 0.0
                             in the system.
     '''
-    def __init__(self, pixel_res: float, coordinate_offset: float = (0.0, 0.0)):
+    def __init__(self, pixel_res: float, coordinate_offset: tuple[float, float] = (0.0, 0.0)):
         self.pixel_res = pixel_res
         self.coordinate_offset = coordinate_offset
         self.images = []
@@ -82,16 +82,16 @@ class DiscretizedModel:
         return True
 
     def find_rectangle_points(self, center1, center2, radius):
-        translated_cent1 = np.array(center1) - np.array(center2)
-        translated_cent2 = np.array(center2) - np.array(center1)
+        translated_cent1 = np.array(center1) - np.array(center2) #type: ignore
+        translated_cent2 = np.array(center2) - np.array(center1) #type: ignore
 
         norm_rad1 = (translated_cent1 / np.linalg.norm(translated_cent1)) * radius
         norm_rad2 = (translated_cent2 / np.linalg.norm(translated_cent2)) * radius
 
-        trans_point1 = (norm_rad1[1], -norm_rad1[0]) + np.array(center2)
-        trans_point2 = (-norm_rad1[1], norm_rad1[0]) + np.array(center2)
-        trans_point3 = (norm_rad2[1], -norm_rad2[0]) + np.array(center1)
-        trans_point4 = (-norm_rad2[1], norm_rad2[0]) + np.array(center1)
+        trans_point1 = (norm_rad1[1], -norm_rad1[0]) + np.array(center2) #type: ignore
+        trans_point2 = (-norm_rad1[1], norm_rad1[0]) + np.array(center2) #type: ignore
+        trans_point3 = (norm_rad2[1], -norm_rad2[0]) + np.array(center1) #type: ignore
+        trans_point4 = (-norm_rad2[1], norm_rad2[0]) + np.array(center1) #type: ignore
 
         return np.array([trans_point1, trans_point2, trans_point3, trans_point4])
 
