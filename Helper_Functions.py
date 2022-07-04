@@ -11,11 +11,9 @@ def deg_to_rad(degrees):
     return (degrees * np.pi) / 180.0
 
 def load_shader(filepath):
-    shader_file = open(filepath)
-    with shader_file as file:
-        shader = file.read()
-
-    shader_file.close()
+    with open(filepath) as shader_file:
+        with shader_file as file:
+            shader = file.read()
 
     return shader
 
@@ -36,16 +34,11 @@ def get_model_min_max(model):
 
 def determine_square_ortho(min_max_tuple):
     highest_coords = np.ceil(min_max_tuple[1::2])
-    lowest_coords = np.floor(min_max_tuple[0::2])
-    
-    xy_midpoint = (highest_coords[0:4] + lowest_coords[0:4]) / 2
-    largest_dim = 0
-    if xy_midpoint[0] > xy_midpoint[1]:
-        largest_dim = xy_midpoint[0]
-    else:
-        largest_dim = xy_midpoint[1]
+    lowest_coords = np.floor(min_max_tuple[::2])
 
-    return largest_dim
+    xy_midpoint = (highest_coords[:4] + lowest_coords[:4]) / 2
+    largest_dim = 0
+    return xy_midpoint[0] if xy_midpoint[0] > xy_midpoint[1] else xy_midpoint[1]
 
 def bounding_box_circle(center, radius: float, target_res=0.1, margin=0):
     top = (math.floor(center[0]), math.ceil(center[1] + radius + margin))
@@ -80,7 +73,4 @@ def double_circle_bbox(center1, radius1: float, center2, radius2: float):
 def check_point_in_circle(circ_center, radius, pixel_coord):
     pythag = (pixel_coord[0] - circ_center[0])**2 + (pixel_coord[1] - circ_center[1])**2
 
-    if pythag <= radius**2:
-        return True
-    else:
-        return False
+    return pythag <= radius**2

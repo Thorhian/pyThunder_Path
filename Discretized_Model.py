@@ -50,8 +50,7 @@ class DiscretizedModel:
         search_bounds = hf.double_circle_bbox(center1, radius, center2, radius)
         image_shape = self.images[image_indice].shape
         print(image_shape)
-        material_counter = dict()
-        material_counter["stock"] = 0
+        material_counter = {"stock": 0}
         img_res = self.images[image_indice].shape
 
         x = np.clip(search_bounds[2], 0, img_res[1])
@@ -73,11 +72,12 @@ class DiscretizedModel:
 
 
     def check_in_capsule(self, center1, center2, radius, point):
-        if not self.check_in_circle(center1, radius, point):
-            if not self.check_in_circle(center2, radius, point):
-                rect_verts = self.find_rectangle_points(center1, center2, radius)
-                if not self.check_in_rectangle(rect_verts, point):
-                    return False
+        if not self.check_in_circle(
+            center1, radius, point
+        ) and not self.check_in_circle(center2, radius, point):
+            rect_verts = self.find_rectangle_points(center1, center2, radius)
+            if not self.check_in_rectangle(rect_verts, point):
+                return False
 
         return True
 
@@ -108,16 +108,13 @@ class DiscretizedModel:
     def check_in_rectangle(self, rect_points, point):
         sorted_indices = self.sort_rectangle_verts(rect_points)
 
-        i = 0
-        while i < 4:
+        for i in range(4):
             v1 = rect_points[sorted_indices[i]]
             v2 = rect_points[sorted_indices[(i + 1) % 4]]
             d = (v2[0] - v1[0]) * (point[1] - v1[1]) - (point[0] - v1[0]) * (v2[1] - v1[1])
 
             if d < 0:
                 return False
-
-            i += 1
 
         return True
 
@@ -127,8 +124,7 @@ class DiscretizedModel:
         offset_verts = vertices + avg_center
         polar_rotations = np.zeros(4)
 
-        i = 0
-        while i < 4:
+        for i in range(4):
             rotation = np.rad2deg(np.arctan2(offset_verts[i][1],
                                              offset_verts[i][0]))
 
@@ -136,7 +132,4 @@ class DiscretizedModel:
                 rotation = 360 + rotation
 
             polar_rotations[i] = rotation
-            i += 1
-
-
         return np.argsort(polar_rotations)

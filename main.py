@@ -11,7 +11,7 @@ import geometry_gens
 target_res_per_pixel = 0.2 #Width/Height of each pixel
 
 for arg in sys.argv:
-    if arg == '--help' or arg == '-h':
+    if arg in ['--help', '-h']:
         hf.print_help()
         sys.exit()
 

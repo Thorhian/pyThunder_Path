@@ -39,7 +39,10 @@ class Job:
         tuple of (-x, x, -y, y, -z, z).
         '''
         rough_bounds = hf.get_model_min_max(self.target_model)
-        lower_bounds_with_margin = np.floor(rough_bounds[0::2]) - math.ceil(self.tool_diam + 5)
+        lower_bounds_with_margin = np.floor(rough_bounds[::2]) - math.ceil(
+            self.tool_diam + 5
+        )
+
         higher_bounds_with_margin = np.ceil(rough_bounds[1::2]) + math.ceil(self.tool_diam + 5)
         return (lower_bounds_with_margin[0], higher_bounds_with_margin[0],
                 lower_bounds_with_margin[1], higher_bounds_with_margin[1],
@@ -237,9 +240,7 @@ class Job:
         if not os.path.exists("renders"):
             os.makedirs("renders")
 
-        counter = 0
-        for render in self.d_model.images:
+        for counter, render in enumerate(self.d_model.images):
             print(f"Saving image {counter}")
             image = Image.fromarray(render)
             image.save(f"./renders/layer{counter}.png")
-            counter += 1
