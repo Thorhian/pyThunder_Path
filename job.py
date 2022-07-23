@@ -38,7 +38,7 @@ class Job:
         Calculates the bounding box of the targetted model. Returns a
         tuple of (-x, x, -y, y, -z, z).
         '''
-        rough_bounds = hf.get_model_min_max(self.target_model)
+        rough_bounds = hf.get_model_min_max(self.stock_model)
         lower_bounds_with_margin = np.floor(rough_bounds[0::2]) - math.ceil(self.tool_diam + 5)
         higher_bounds_with_margin = np.ceil(rough_bounds[1::2]) + math.ceil(self.tool_diam + 5)
         return (lower_bounds_with_margin[0], higher_bounds_with_margin[0],
@@ -113,7 +113,7 @@ class Job:
 
         #Get vertice and color data prepared
         model_size = self.target_model.vectors.size
-        stock_size = self.stock_model.size
+        stock_size = self.stock_model.vectors.size
         r = np.zeros(model_size)
         g = np.zeros(model_size)
         b = np.ones(model_size)
@@ -132,7 +132,7 @@ class Job:
             1, -1,
         ], dtype='f4')
         model_verts = self.target_model.vectors.flatten().astype('f4')
-        stock_verts = self.stock_model.flatten().astype('f4')
+        stock_verts = self.stock_model.vectors.flatten().astype('f4')
         #rendered_verts = np.concatenate((model_verts, stock_verts)).astype('f4')
         #all_colors = np.concatenate((model_colors.flatten(), stock_colors.flatten())).astype('f4')
 
