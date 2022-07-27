@@ -221,7 +221,7 @@ class Job:
                                   dtype='u1')
             image = np.reshape(image, (self.img_res[1], self.img_res[0], 4))
             image = np.flip(image, 0)
-            self.d_model.add_layer(image,current_depth)
+            self.d_model.add_layer(image.copy(),current_depth)
 
         if current_depth != model_depth:
             print(f"Render depth: {model_depth}")
@@ -231,7 +231,7 @@ class Job:
                                   dtype='u1')
             image = np.reshape(image, (self.img_res[1], self.img_res[0], 4))
             image = np.flip(image, 0)
-            self.d_model.add_layer(image,current_depth)
+            self.d_model.add_layer(image.copy(),current_depth)
 
     def save_images(self):
         if not os.path.exists("renders"):
@@ -255,5 +255,5 @@ class Job:
         image_count = len(self.d_model.images)
         for indice in range(image_count):
             print(f"Indice: {indice}")
-            self.d_model.cut_circle(image_center, self.tool_diam / 2, indice)
+            self.d_model.cut_circle(image_center, self.tool_diam / self.target_res, indice)
         return 0;

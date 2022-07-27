@@ -44,12 +44,22 @@ class DiscretizedModel:
     def cut_circle(self, center, radius, image_indice):
         bounds = hf.double_circle_bbox(center, radius, center, radius)
 
-        for row in self.images[image_indice][bounds[0]:bounds[1]]:
-            for pixel in row[bounds[2]:bounds[3]]:
-                eq_left_side = pow(pixel_coords[0] - center[0], 2) + pow(pixel_coords[1] - center[1], 2)
+        search_bounds = hf.double_circle_bbox(center, radius, center, radius)
+        image_shape = self.images[image_indice].shape
+        img_res = self.images[image_indice].shape
 
-                if (eq_left_side < pow(radius, 2)):
-                    pixel[3] = 0
+        x = np.clip(search_bounds[2], 0, img_res[1])
+        y = np.clip(search_bounds[1], 0, img_res[0])
+        while y < search_bounds[0] or y < image_shape[0]:
+            x = search_bounds[2]
+            while x < search_bounds[3] or x < image_shape[1]:
+                current_pixel = self.images[image_indice][y][x]
+                if current_pixel[3] > 0 and self.check_in_circle(center, radius, (x, y)):
+                    self.images[image_indice][y][x][3] = 0
+
+                x += 1
+
+            y += 1
 
         return 1
 
@@ -83,7 +93,7 @@ class DiscretizedModel:
 
         return material_counter
 
-
+    #FIXME Seems to always return true
     def check_in_capsule(self, center1, center2, radius, point):
         if not self.check_in_circle(center1, radius, point):
             if not self.check_in_circle(center2, radius, point):
