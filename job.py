@@ -243,3 +243,17 @@ class Job:
             image = Image.fromarray(render)
             image.save(f"./renders/layer{counter}.png")
             counter += 1
+
+    def generate_paths(self):
+        if len(self.d_model.images) < 1:
+            print("No images loaded in discrete model.")
+            return -1;
+
+        shape = self.d_model.images[0].shape
+        image_center = (shape[0] / 2, shape[1] / 2)
+
+        image_count = len(self.d_model.images)
+        for indice in range(image_count):
+            print(f"Indice: {indice}")
+            self.d_model.cut_circle(image_center, self.tool_diam / 2, indice)
+        return 0;

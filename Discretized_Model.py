@@ -41,6 +41,18 @@ class DiscretizedModel:
         self.images.append(image)
         self.heights.append(height)
 
+    def cut_circle(self, center, radius, image_indice):
+        bounds = hf.double_circle_bbox(center, radius, center, radius)
+
+        for row in self.images[image_indice][bounds[0]:bounds[1]]:
+            for pixel in row[bounds[2]:bounds[3]]:
+                eq_left_side = pow(pixel_coords[0] - center[0], 2) + pow(pixel_coords[1] - center[1], 2)
+
+                if (eq_left_side < pow(radius, 2)):
+                    pixel[3] = 0
+
+        return 1
+
     def check_cut(self, center1, center2, radius, image_indice):
         '''
         Checks pixels in an image where a given tool path

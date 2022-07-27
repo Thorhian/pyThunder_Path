@@ -37,4 +37,5 @@ newJob = Job(model_mesh, stock_mesh, [],
              tool_diameter, target_res=target_res_per_pixel)
 print(newJob.bounds)
 newJob.render_layers(depth_of_cut)
+newJob.generate_paths()
 newJob.save_images()
