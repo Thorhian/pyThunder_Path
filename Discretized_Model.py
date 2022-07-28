@@ -42,8 +42,6 @@ class DiscretizedModel:
         self.heights.append(height)
 
     def cut_circle(self, center, radius, image_indice):
-        bounds = hf.double_circle_bbox(center, radius, center, radius)
-
         search_bounds = hf.double_circle_bbox(center, radius, center, radius)
         image_shape = self.images[image_indice].shape
         img_res = self.images[image_indice].shape
