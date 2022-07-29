@@ -250,10 +250,11 @@ class Job:
             return -1;
 
         shape = self.d_model.images[0].shape
-        image_center = (shape[0] / 2, shape[1] / 2)
+        image_center = (shape[1] / 2, shape[0] / 2)
+        cut_destination = (shape[1] / 2 + 60, shape[0] / 2)
 
         image_count = len(self.d_model.images)
         for indice in range(image_count):
             print(f"Indice: {indice}")
-            self.d_model.cut_circle(image_center, self.tool_diam / self.target_res, indice)
+            self.d_model.cut_capsule(image_center, cut_destination, self.tool_diam / self.target_res, indice)
         return 0;

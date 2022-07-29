@@ -61,6 +61,26 @@ class DiscretizedModel:
 
         return 1
 
+    def cut_capsule(self, center1, center2, radius, image_indice):
+        search_bounds = hf.double_circle_bbox(center1, radius, center2, radius)
+        image_shape = self.images[image_indice].shape
+        img_res = self.images[image_indice].shape
+
+        x = np.clip(search_bounds[2], 0, img_res[1])
+        y = np.clip(search_bounds[1], 0, img_res[0])
+        while y < search_bounds[0] or y < image_shape[0]:
+            x = search_bounds[2]
+            while x < search_bounds[3] or x < image_shape[1]:
+                current_pixel = self.images[image_indice][y][x]
+                if current_pixel[3] > 0 and self.check_in_capsule(center1, center2, radius, (x, y)):
+                    self.images[image_indice][y][x][3] = 0
+
+                x += 1
+
+            y += 1
+
+        return 1
+
     def check_cut(self, center1, center2, radius, image_indice):
         '''
         Checks pixels in an image where a given tool path
@@ -91,7 +111,6 @@ class DiscretizedModel:
 
         return material_counter
 
-    #FIXME Seems to always return true
     def check_in_capsule(self, center1, center2, radius, point):
         if not self.check_in_circle(center1, radius, point):
             if not self.check_in_circle(center2, radius, point):
@@ -144,7 +163,7 @@ class DiscretizedModel:
     def sort_rectangle_verts(self, vertices):
         avg_center = np.add.reduce(vertices) / 4
 
-        offset_verts = vertices + avg_center
+        offset_verts = vertices - avg_center
         polar_rotations = np.zeros(4)
 
         i = 0
@@ -157,6 +176,5 @@ class DiscretizedModel:
 
             polar_rotations[i] = rotation
             i += 1
-
 
         return np.argsort(polar_rotations)
