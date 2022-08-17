@@ -6,7 +6,6 @@ layout(std430, binding = 1) buffer counterBuffer
 {
   uint counters[];
 } cIn;
-uniform vec2 imageSize;
 uniform vec4 circleCenters;
 uniform float circleRadius;
 uniform mat4x2 quadPoints;
@@ -40,8 +39,9 @@ bool isInsideQuad(ivec2 point) {
 
 void main() {
     ivec2 texelPosition = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 imageDims = imageSize(imageSlice);
 
-    if(texelPosition.x > imageSize.x || texelPosition.y > imageSize.y) {
+    if(texelPosition.x > (imageDims.x - 1) || texelPosition.y > (imageDims.y - 1)) {
         return;
     }
 
