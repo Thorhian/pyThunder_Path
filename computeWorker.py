@@ -21,13 +21,12 @@ class ComputeWorker:
 
         count_program = hf.load_shader("./shaders/count_colors.glsl")
         self.counter_compute: moderngl.ComputeShader = self.ctx.compute_shader(count_program)
-        self.counter_compute['imageSize'] = self.image_res[0], self.image_res[1]
         self.image_buffer = self.ctx.texture(self.image_res, 4)
         self.image_buffer.write(target_image)
         self.image_buffer.bind_to_image(1)
         self.counter_compute['imageSlice'] = 1
         dtype = np.dtype('u4')
-        uint_counters = np.array([0, 0, 0], dtype=dtype)
+        uint_counters = np.array([0, 0, 0, 0,], dtype=dtype)
         self.uint_buffer = self.ctx.buffer(uint_counters)
         self.uint_buffer.bind_to_storage_buffer(1)
 
@@ -58,9 +57,14 @@ class ComputeWorker:
         
         quad: np.ndarray = self.find_rectangle_points(center1, center2, radius)
         sorted_quad_indices = self.sort_rectangle_verts(quad)
-        quadUniform.write(quad) #type: ignore
+        quadUniform.write(quad.flatten()) #type: ignore
         quadIUniform.write(sorted_quad_indices) #type: ignore
     
+        self.counter_compute.run(self.image_res[0] // 16 + 1, self.image_res[1] // 16 + 1)
+
+        counters = np.frombuffer(self.uint_buffer.read(), dtype=np.dtype('u4'))
+        print(counters)
+
 
 
     def find_rectangle_points(self, center1, center2, radius):

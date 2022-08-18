@@ -11,6 +11,7 @@ from PIL import Image
 
 import Helper_Functions as hf
 from Discretized_Model import DiscretizedModel
+from computeWorker import ComputeWorker
 
 class Job:
     '''
@@ -239,7 +240,6 @@ class Job:
 
         counter = 0
         for render in self.d_model.images:
-            print(f"Saving image {counter}")
             image = Image.fromarray(render)
             image.save(f"./renders/layer{counter}.png")
             counter += 1
@@ -255,6 +255,6 @@ class Job:
 
         image_count = len(self.d_model.images)
         for indice in range(image_count):
-            print(f"Indice: {indice}")
-            self.d_model.cut_capsule(image_center, cut_destination, self.tool_diam / self.target_res, indice)
+            worker = ComputeWorker(self.target_res, self.d_model.images[indice])
+            worker.check_cut(image_center, cut_destination, self.tool_diam / 2 / 0.2)
         return 0;
