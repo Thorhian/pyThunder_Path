@@ -10,12 +10,13 @@ class ComputeWorker:
     '''
     def __init__(self,
             pixel_res: float,
-            target_image: np.ndarray,
+            target_image: bytes,
+            img_res
             ):
         self.pixel_res = pixel_res
         self.ctx = moderngl.create_standalone_context()
         self.ctx.enable(moderngl.DEPTH_TEST)
-        self.image_res = (target_image.shape[0], target_image.shape[1])
+        self.image_res = img_res
 
 
 
@@ -23,7 +24,9 @@ class ComputeWorker:
         self.counter_compute: moderngl.ComputeShader = self.ctx.compute_shader(count_program)
         self.image_buffer = self.ctx.texture(self.image_res, 4)
         self.image_buffer.write(target_image)
+        self.depthBuffer = self.ctx.depth_texture(self.image_res)
         self.image_buffer.bind_to_image(1)
+        self.image_buffer.use(0)
         self.counter_compute['imageSlice'] = 1
         dtype = np.dtype('u4')
         uint_counters = np.array([0, 0, 0, 0,], dtype=dtype)
@@ -36,18 +39,22 @@ class ComputeWorker:
         self.painter_prog = self.ctx.program(vertex_shader=image_vertex_code,
                 fragment_shader=paint_frag_code)
 
-        
         image_vertices = np.array([
             -1, 1,
             -1, -1,
             1, 1,
             1, -1,
         ], dtype='f4')
+        self.painter_prog['prev_render'] = 0
+
         imageVerts_vbo = self.ctx.buffer(image_vertices)
         self.painter_vao = self.ctx.vertex_array(self.painter_prog, [
             (imageVerts_vbo, '2f', 'in_position')
             ])
-
+        self.paintOut = self.ctx.texture(self.image_res, 4)
+        self.paint_fbo = self.ctx.framebuffer([self.paintOut], self.depthBuffer)
+        self.paint_fbo.clear(0.0, 0.0, 0.0, 0.0)
+        self.paint_fbo.use()
 
     def check_cut(self, center1, center2, radius):
         self.counter_compute['circleCenters'] = center1[0], center1[1], center2[0], center2[1]
@@ -55,8 +62,8 @@ class ComputeWorker:
         quadUniform = self.counter_compute['quadPoints']
         quadIUniform = self.counter_compute['quadIndices']
         
-        quad: np.ndarray = self.find_rectangle_points(center1, center2, radius)
-        sorted_quad_indices = self.sort_rectangle_verts(quad)
+        quad: np.ndarray = self.find_rectangle_points(center1, center2, radius) #type: ignore
+        sorted_quad_indices = self.sort_rectangle_verts(quad) #type: ignore
         quadUniform.write(quad.flatten()) #type: ignore
         quadIUniform.write(sorted_quad_indices) #type: ignore
     
@@ -65,7 +72,29 @@ class ComputeWorker:
         counters = np.frombuffer(self.uint_buffer.read(), dtype=np.dtype('u4'))
         print(counters)
 
+    def make_cut(self, center1, center2, radius):
+        self.painter_prog['circleCenters'] = center1[0], center1[1], center2[0], center2[1]
+        self.painter_prog['circleRadius'] = radius
 
+        quadUniform = self.painter_prog['quadPoints']
+        quadIUniform = self.painter_prog['quadIndices']
+        
+        quad: np.ndarray = self.find_rectangle_points(center1, center2, radius) #type: ignore
+        sorted_quad_indices = self.sort_rectangle_verts(quad) #type: ignore
+        quadUniform.write(quad.flatten()) #type: ignore
+        quadIUniform.write(sorted_quad_indices) #type: ignore
+
+        self.painter_vao.render(moderngl.TRIANGLE_STRIP)
+        self.ctx.finish()
+
+        temp_buf = self.paintOut.read(alignment=4)
+        self.image_buffer.write(temp_buf)
+
+    def retrieve_image(self):
+        image = np.frombuffer(self.paint_fbo.read(components=4, dtype='f1'), dtype='u1')
+        image = np.reshape(image, (self.image_res[1], self.image_res[0], 4))
+        image = np.flip(image, 0)
+        return image
 
     def find_rectangle_points(self, center1, center2, radius):
         translated_cent1 = np.array(center1) - np.array(center2) #type: ignore

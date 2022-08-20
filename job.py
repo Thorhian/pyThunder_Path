@@ -218,21 +218,23 @@ class Job:
             self.change_ortho_matrix(current_depth)
             print(f"Render depth: {current_depth}")
             self.render()
-            image = np.frombuffer(self.fbo3.read(components=4, dtype='f1'),
-                                  dtype='u1')
-            image = np.reshape(image, (self.img_res[1], self.img_res[0], 4))
-            image = np.flip(image, 0)
-            self.d_model.add_layer(image.copy(),current_depth)
+            #image = np.frombuffer(self.fbo3.read(components=4, dtype='f1'),
+                                  #dtype='u1')
+            #image = np.reshape(image, (self.img_res[1], self.img_res[0], 4))
+            #image = np.flip(image, 0)
+            image = self.fbo3.read(components=4, dtype='f1')
+            self.d_model.add_layer(image,current_depth)
 
         if current_depth != model_depth:
             print(f"Render depth: {model_depth}")
             self.change_ortho_matrix(model_depth)
             self.render()
-            image = np.frombuffer(self.fbo3.read(components=4, dtype='f1'),
-                                  dtype='u1')
-            image = np.reshape(image, (self.img_res[1], self.img_res[0], 4))
-            image = np.flip(image, 0)
-            self.d_model.add_layer(image.copy(),current_depth)
+            #image = np.frombuffer(self.fbo3.read(components=4, dtype='f1'),
+                                  #dtype='u1')
+            #image = np.reshape(image, (self.img_res[1], self.img_res[0], 4))
+            #image = np.flip(image, 0)
+            image = self.fbo3.read(components=4, dtype='f1')
+            self.d_model.add_layer(image,current_depth)
 
     def save_images(self):
         if not os.path.exists("renders"):
@@ -240,7 +242,10 @@ class Job:
 
         counter = 0
         for render in self.d_model.images:
-            image = Image.fromarray(render)
+            image = np.frombuffer(render, dtype='u1')
+            image = np.reshape(image, (self.img_res[1], self.img_res[0], 4))
+            image = np.flip(image, 0)
+            image = Image.fromarray(image)
             image.save(f"./renders/layer{counter}.png")
             counter += 1
 
@@ -249,12 +254,19 @@ class Job:
             print("No images loaded in discrete model.")
             return -1;
 
-        shape = self.d_model.images[0].shape
+        shape = self.img_res
         image_center = (shape[1] / 2, shape[0] / 2)
-        cut_destination = (shape[1] / 2 + 60, shape[0] / 2)
+        cut_destination = (shape[1] / 2 + -100, shape[0] / 2 + 60)
 
         image_count = len(self.d_model.images)
+        test_imgs = []
         for indice in range(image_count):
-            worker = ComputeWorker(self.target_res, self.d_model.images[indice])
-            worker.check_cut(image_center, cut_destination, self.tool_diam / 2 / 0.2)
+            worker = ComputeWorker(self.target_res, self.d_model.images[indice], self.img_res)
+            worker.check_cut(image_center, cut_destination, self.tool_diam / 2 / self.target_res)
+            worker.make_cut(image_center, cut_destination, self.tool_diam / 2 / self.target_res)
+            test_imgs.append(Image.fromarray(worker.retrieve_image()))
+
+        for counter, image in enumerate(test_imgs):
+            image.save(f"./renders/testCut{counter}.png")
+
         return 0;
