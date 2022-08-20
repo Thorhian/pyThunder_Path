@@ -82,8 +82,8 @@ capsule shape, setting those pixels alpha value to 0.
     - Model and stock geometry are loaded as stl files, given by command line arguments.
     - Rendering of the target model and stock geometry works
     - Edge Detection and Edge expansion algorithms in GLSL are working
-    - Some initial python code to count pixel types in rendered images within a given
-    cut area.
+    - GLSL Compute Shader for counting pixel types has been implemented
+    - GLSL Fragment shader for performing "cuts" on rendered images has been implemented.
     
 ## References
 
