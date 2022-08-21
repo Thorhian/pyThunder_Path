@@ -1,6 +1,6 @@
 # CETP Prototype
 
- ![A Jowwi, a raptor-like creature, by DarkEdgeTV, model made by me.](./exampleImages/jowwi_example_render.gif "Additive slices of a sculpted 3D model.")
+ ![A Jowwi, a raptor-like creature, by DarkEdgeTV, model made by me.](./exampleImages/cutting.gif "Additive slices of a sculpted 3D model.")
 
 ## The Goal:
 A prototype program for creating tool paths for CNC Milling Machines,
@@ -23,6 +23,15 @@ easier to discover and actually make programs for CNC Milling Machines, since
 without them and all of the other modern machine tools (lathes, EDM, grinding,
 etc), we would not be living in the world we have today.
 
+## Current Progress:
+
+    - Model and stock geometry are loaded as stl files, given by command line arguments.
+    - Rendering of the target model and stock geometry works
+    - Edge Detection and Edge expansion algorithms in GLSL are working
+    - GLSL Compute Shader for counting pixel types has been implemented
+    - GLSL Fragment shader for performing "cuts" on rendered images has been implemented.
+    - Added a small path example to cut around the perimeter of the image.
+    
 ## The Method To The Madness
 
 In order to create an algorithm that is capable of creating tool paths that
@@ -77,14 +86,6 @@ there is too much stock material beyond the radial engagement parameter, then
 the cut is aborted. Once a good cut is found, the image is edited using that
 capsule shape, setting those pixels alpha value to 0.
 
-## Current Progress:
-
-    - Model and stock geometry are loaded as stl files, given by command line arguments.
-    - Rendering of the target model and stock geometry works
-    - Edge Detection and Edge expansion algorithms in GLSL are working
-    - GLSL Compute Shader for counting pixel types has been implemented
-    - GLSL Fragment shader for performing "cuts" on rendered images has been implemented.
-    
 ## References
 
 The software written here was inspired by this paper,
