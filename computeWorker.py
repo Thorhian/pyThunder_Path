@@ -84,6 +84,7 @@ class ComputeWorker:
         quadUniform.write(quad.flatten()) #type: ignore
         quadIUniform.write(sorted_quad_indices) #type: ignore
 
+        self.paint_fbo.clear()
         self.painter_vao.render(moderngl.TRIANGLE_STRIP)
         self.ctx.finish()
 

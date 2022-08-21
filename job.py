@@ -29,7 +29,6 @@ class Job:
         self.ctx = moderngl.create_standalone_context()
         self.bounds = self.calculate_bounds()
         self.img_res = self.calculate_resolution(self.bounds)
-        print(self.img_res)
         self.setup_opengl_objects()
         self.d_model = DiscretizedModel(target_res)
 
@@ -255,15 +254,35 @@ class Job:
             return -1;
 
         shape = self.img_res
+        print(shape)
         image_center = (shape[1] / 2, shape[0] / 2)
-        cut_destination = (shape[1] / 2 + -100, shape[0] / 2 + 60)
+        #cut_destination = (shape[1] / 2 + -100, shape[0] / 2 + 60)
 
         image_count = len(self.d_model.images)
         test_imgs = []
-        for indice in range(image_count):
-            worker = ComputeWorker(self.target_res, self.d_model.images[indice], self.img_res)
-            worker.check_cut(image_center, cut_destination, self.tool_diam / 2 / self.target_res)
-            worker.make_cut(image_center, cut_destination, self.tool_diam / 2 / self.target_res)
+        cutDirections: np.ndarray = np.array([
+                [shape[1] * 0.12, shape[0] * 0.03],
+                [shape[1] * 0.12, shape[0] * 0.98],
+                [shape[1] * 0.88, shape[0] * 0.98],
+                [shape[1] * 0.88, shape[0] * 0.03],
+                [shape[1] * 0.16, shape[0] * 0.03],
+                [shape[1] * 0.16, shape[0] * 0.96],
+                [shape[1] * 0.84, shape[0] * 0.96],
+                [shape[1] * 0.84, shape[0] * 0.04],
+                [shape[1] * 0.16, shape[0] * 0.04],
+            ])
+        tool_radius = self.tool_diam / 2 / self.target_res
+        worker: ComputeWorker = ComputeWorker(self.target_res, self.d_model.images[image_count - 1], self.img_res)
+        #for start_point in cutDirections:
+        #    worker.check_cut(start_point, , self.tool_diam / 2 / self.target_res)
+        #    worker.make_cut(image_center, cut_destination, self.tool_diam / 2 / self.target_res)
+        #    test_imgs.append(Image.fromarray(worker.retrieve_image()))
+
+        for indice in range(cutDirections.shape[0] - 1):
+            start = cutDirections[indice]
+            stop = cutDirections[(indice + 1)]
+            worker.check_cut(start, stop, tool_radius)
+            worker.make_cut(start, stop, tool_radius)
             test_imgs.append(Image.fromarray(worker.retrieve_image()))
 
         for counter, image in enumerate(test_imgs):
