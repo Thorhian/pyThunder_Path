@@ -269,7 +269,7 @@ class Job:
                 [shape[1] * 0.16, shape[0] * 0.04],
             ])
         tool_radius = self.tool_diam / 2 / self.target_res
-        worker: ComputeWorker = ComputeWorker(self.target_res, self.d_model.images[image_count - 1][0], self.img_res)
+        worker: ComputeWorker = ComputeWorker(self.target_res, self.d_model.images[image_count - 1], self.img_res)
 
         for indice in range(cutDirections.shape[0] - 1):
             start = cutDirections[indice]

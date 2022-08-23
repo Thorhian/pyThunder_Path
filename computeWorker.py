@@ -1,4 +1,5 @@
 
+from typing import Tuple
 import Helper_Functions as hf
 import moderngl
 import numpy as np
@@ -10,7 +11,7 @@ class ComputeWorker:
     '''
     def __init__(self,
             pixel_res: float,
-            target_image: bytes,
+            target_images: Tuple[bytes, bytes],
             img_res
             ):
         self.pixel_res = pixel_res
@@ -19,11 +20,11 @@ class ComputeWorker:
         self.image_res = img_res
 
 
-
+        #Setup cutting pixel counter compute shader
         count_program = hf.load_shader("./shaders/count_colors.glsl")
         self.counter_compute: moderngl.ComputeShader = self.ctx.compute_shader(count_program)
         self.image_buffer = self.ctx.texture(self.image_res, 4)
-        self.image_buffer.write(target_image)
+        self.image_buffer.write(target_images[0])
         self.depthBuffer = self.ctx.depth_texture(self.image_res)
         self.image_buffer.bind_to_image(1)
         self.image_buffer.use(0)
@@ -33,7 +34,7 @@ class ComputeWorker:
         self.uint_buffer = self.ctx.buffer(uint_counters)
         self.uint_buffer.bind_to_storage_buffer(1)
 
-
+        #Setup painter/cutter shader program and vao
         image_vertex_code = hf.load_shader("./shaders/image_shader.vert")
         paint_frag_code = hf.load_shader("./shaders/painter.frag")
         self.painter_prog = self.ctx.program(vertex_shader=image_vertex_code,
@@ -55,6 +56,26 @@ class ComputeWorker:
         self.paint_fbo = self.ctx.framebuffer([self.paintOut], self.depthBuffer)
         self.paint_fbo.clear(0.0, 0.0, 0.0, 0.0)
         self.paint_fbo.use()
+
+        #Setup buffers and program/vao for stock island detection.
+        island_gen_code = hf.load_shader("./shaders/islandGenerator.frag")
+        self.island_gen_prog = self.ctx.program(
+                vertex_shader=image_vertex_code,
+                fragment_shader=island_gen_code
+                )
+
+        self.stock_buffer = self.ctx.texture(self.image_res, 4)
+        self.initial_state = self.ctx.texture(self.image_res, 4)
+        self.initial_state.write(target_images[0])
+        self.stock_buffer.write(target_images[1])
+        self.island_gen_prog['fullRender'] = 1
+        self.island_gen_prog['stockOnlyRender'] = 2
+        self.stock_buffer.use(2)
+        self.initial_state.use(1)
+
+        self.island_gen_vao = self.ctx.vertex_array(self.island_gen_prog, [
+            (imageVerts_vbo, '2f', 'in_position')
+            ])
 
     def check_cut(self, center1, center2, radius):
         self.counter_compute['circleCenters'] = center1[0], center1[1], center2[0], center2[1]
