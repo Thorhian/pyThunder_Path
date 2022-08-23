@@ -161,6 +161,8 @@ class Job:
             (image_vbo, '2f', 'in_position'),
         ])
 
+        buffer_size = self.img_res[0] * self.img_res[1] * 4
+        self.stock_only_buffer = self.ctx.buffer(reserve=buffer_size)
         self.fbo_stock = self.ctx.framebuffer([firstPass], stockPassDepth)
         self.fbo1 = self.ctx.framebuffer([firstPass], firstPassDepth)
         self.fbo2 = self.ctx.framebuffer([secondPass], secondPassDepth)
@@ -173,6 +175,7 @@ class Job:
         self.fbo_stock.clear()
         self.fbo_stock.use()
         self.vao_stock.render(moderngl.TRIANGLES)
+        self.fbo_stock.read_into(self.stock_only_buffer, components=4, dtype='f1')
         self.fbo1.use()
         self.vao1.render(moderngl.TRIANGLES)
         self.fbo2.clear(0.0, 0.0, 0.0, 0.0)
@@ -217,23 +220,17 @@ class Job:
             self.change_ortho_matrix(current_depth)
             print(f"Render depth: {current_depth}")
             self.render()
-            #image = np.frombuffer(self.fbo3.read(components=4, dtype='f1'),
-                                  #dtype='u1')
-            #image = np.reshape(image, (self.img_res[1], self.img_res[0], 4))
-            #image = np.flip(image, 0)
-            image = self.fbo3.read(components=4, dtype='f1')
-            self.d_model.add_layer(image,current_depth)
+            result_image = self.fbo3.read(components=4, dtype='f1')
+            stock_only = self.stock_only_buffer.read()
+            self.d_model.add_layer((result_image, stock_only), current_depth)
 
         if current_depth != model_depth:
             print(f"Render depth: {model_depth}")
             self.change_ortho_matrix(model_depth)
             self.render()
-            #image = np.frombuffer(self.fbo3.read(components=4, dtype='f1'),
-                                  #dtype='u1')
-            #image = np.reshape(image, (self.img_res[1], self.img_res[0], 4))
-            #image = np.flip(image, 0)
-            image = self.fbo3.read(components=4, dtype='f1')
-            self.d_model.add_layer(image,current_depth)
+            result_image = self.fbo3.read(components=4, dtype='f1')
+            stock_only = self.stock_only_buffer.read()
+            self.d_model.add_layer((result_image, stock_only), current_depth)
 
     def save_images(self):
         if not os.path.exists("renders"):
@@ -241,7 +238,7 @@ class Job:
 
         counter = 0
         for render in self.d_model.images:
-            image = np.frombuffer(render, dtype='u1')
+            image = np.frombuffer(render[0], dtype='u1')
             image = np.reshape(image, (self.img_res[1], self.img_res[0], 4))
             image = np.flip(image, 0)
             image = Image.fromarray(image)
@@ -272,11 +269,7 @@ class Job:
                 [shape[1] * 0.16, shape[0] * 0.04],
             ])
         tool_radius = self.tool_diam / 2 / self.target_res
-        worker: ComputeWorker = ComputeWorker(self.target_res, self.d_model.images[image_count - 1], self.img_res)
-        #for start_point in cutDirections:
-        #    worker.check_cut(start_point, , self.tool_diam / 2 / self.target_res)
-        #    worker.make_cut(image_center, cut_destination, self.tool_diam / 2 / self.target_res)
-        #    test_imgs.append(Image.fromarray(worker.retrieve_image()))
+        worker: ComputeWorker = ComputeWorker(self.target_res, self.d_model.images[image_count - 1][0], self.img_res)
 
         for indice in range(cutDirections.shape[0] - 1):
             start = cutDirections[indice]
