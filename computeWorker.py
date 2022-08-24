@@ -91,6 +91,9 @@ class ComputeWorker:
         self.counter_compute.run(self.image_res[0] // 16 + 1, self.image_res[1] // 16 + 1)
 
         counters = np.frombuffer(self.uint_buffer.read(), dtype=np.dtype('u4'))
+        dtype = np.dtype('u4')
+        uint_counters = np.array([0, 0, 0, 0,], dtype=dtype)
+        self.uint_buffer.write(uint_counters)
         print(counters)
 
     def make_cut(self, center1, center2, radius):
