@@ -55,7 +55,6 @@ class ComputeWorker:
         self.paintOut = self.ctx.texture(self.image_res, 4)
         self.paint_fbo = self.ctx.framebuffer([self.paintOut], self.depthBuffer)
         self.paint_fbo.clear(0.0, 0.0, 0.0, 0.0)
-        self.paint_fbo.use()
 
         #Setup buffers and program/vao for stock island detection.
         island_gen_code = hf.load_shader("./shaders/islandGenerator.frag")
@@ -64,6 +63,7 @@ class ComputeWorker:
                 fragment_shader=island_gen_code
                 )
 
+        buffer_size = self.image_res[0] * self.image_res[1] * 4
         self.stock_buffer = self.ctx.texture(self.image_res, 4)
         self.initial_state = self.ctx.texture(self.image_res, 4)
         self.initial_state.write(target_images[0])
@@ -72,10 +72,20 @@ class ComputeWorker:
         self.island_gen_prog['stockOnlyRender'] = 2
         self.stock_buffer.use(2)
         self.initial_state.use(1)
+        self.island_buffer = self.ctx.buffer(reserve=buffer_size)
+        self.island_fbo = self.ctx.simple_framebuffer(self.image_res, components=4)
 
         self.island_gen_vao = self.ctx.vertex_array(self.island_gen_prog, [
             (imageVerts_vbo, '2f', 'in_position')
             ])
+
+        self.generate_islands()
+
+    def generate_islands(self):
+        self.island_fbo.clear()
+        self.island_fbo.use()
+        self.island_gen_vao.render(moderngl.TRIANGLE_STRIP)
+        self.island_fbo.read_into(self.island_buffer)
 
     def check_cut(self, center1, center2, radius):
         self.counter_compute['circleCenters'] = center1[0], center1[1], center2[0], center2[1]
@@ -109,14 +119,25 @@ class ComputeWorker:
         quadIUniform.write(sorted_quad_indices) #type: ignore
 
         self.paint_fbo.clear()
+        self.paint_fbo.use()
         self.painter_vao.render(moderngl.TRIANGLE_STRIP)
         self.ctx.finish()
 
         temp_buf = self.paintOut.read(alignment=4)
         self.image_buffer.write(temp_buf)
 
+        self.paint_fbo.clear()
+        self.paint_fbo.use()
+
+
     def retrieve_image(self):
         image = np.frombuffer(self.paint_fbo.read(components=4, dtype='f1'), dtype='u1')
+        image = np.reshape(image, (self.image_res[1], self.image_res[0], 4))
+        image = np.flip(image, 0)
+        return image
+
+    def retrieve_islands(self):
+        image = np.frombuffer(self.island_fbo.read(components=4, dtype='f1'), dtype='u1')
         image = np.reshape(image, (self.image_res[1], self.image_res[0], 4))
         image = np.flip(image, 0)
         return image
