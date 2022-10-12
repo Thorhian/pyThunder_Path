@@ -62,6 +62,8 @@ class Job:
         '''
         Creates VBOs, Programs, VAOs, and FBOs for the job.
         '''
+        
+        GL_RGBA2 = 0x8055
 
         self.ctx.enable(moderngl.DEPTH_TEST)
         model_vertex_shader = hf.load_shader("./shaders/v_shader.vert")
@@ -87,7 +89,7 @@ class Job:
         firstPassDepth = self.ctx.depth_texture(self.img_res)
         secondPass = self.ctx.texture(self.img_res, 4)
         secondPassDepth = self.ctx.depth_texture(self.img_res)
-        thirdPass = self.ctx.texture(self.img_res, 4)
+        thirdPass = self.ctx.texture(self.img_res, 4, dtype='f1', internal_format=GL_RGBA2)
         thirdPassDepth = self.ctx.depth_texture(self.img_res)
 
         print(self.bounds[4], ',', self.bounds[5])

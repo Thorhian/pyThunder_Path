@@ -8,7 +8,7 @@ from job import Job
 import Helper_Functions as hf
 
 # Units should be in Metric.
-target_res_per_pixel = 0.2 #Width/Height of each pixel
+target_res_per_pixel = 0.1 #Width/Height of each pixel
 
 for arg in sys.argv:
     if arg == '--help' or arg == '-h':
@@ -38,4 +38,4 @@ newJob = Job(model_mesh, stock_mesh, [],
 print(newJob.bounds)
 newJob.render_layers(depth_of_cut)
 newJob.generate_paths()
-#newJob.save_images()
+newJob.save_images()
