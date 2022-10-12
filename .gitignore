@@ -2,3 +2,6 @@ env
 temp.png
 renders/
 __pycache__
+*.so
+*.o
+*.dll

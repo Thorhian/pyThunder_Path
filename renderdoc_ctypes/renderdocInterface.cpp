@@ -6,9 +6,12 @@
 #include <dlfcn.h>
 #endif
 
+extern "C" void helloWorld() {
+   std::cout << "Hello World\n";
+}
 
 //API must be connected to dynamically. Will return the pointer to API stuff.
-RENDERDOC_API_1_1_2 *checkGetAPI() {
+extern "C" void *checkGetAPI() {
    RENDERDOC_API_1_1_2 *rdoc_api = NULL;
 
 #if defined (WIN32) || defined (_WIN32) || defined (__WIN32) && !defined (__CYGWIN__)
