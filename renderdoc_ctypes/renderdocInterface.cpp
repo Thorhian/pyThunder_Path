@@ -2,16 +2,20 @@
 #include <iostream>
 #include <assert.h>
 
-#if !defined (WIN32) || !defined (_WIN32) || !defined (__WIN32) && defined (__CYGWIN__)
+#if !defined (WIN32) || !defined (_WIN32) || !defined (__WIN32)
 #include <dlfcn.h>
 #endif
 
-extern "C" void helloWorld() {
+//To avoid C++ name mangling
+extern "C" {
+
+//Test/sanity function
+void helloWorld() {
    std::cout << "Hello World\n";
 }
 
 //API must be connected to dynamically. Will return the pointer to API stuff.
-extern "C" void *checkGetAPI() {
+void *checkGetAPI() {
    RENDERDOC_API_1_1_2 *rdoc_api = NULL;
 
 #if defined (WIN32) || defined (_WIN32) || defined (__WIN32) && !defined (__CYGWIN__)
@@ -26,5 +30,16 @@ extern "C" void *checkGetAPI() {
    }
 #endif
 
-return rdoc_api;
+   return rdoc_api;
+}
+
+void startCapture(RENDERDOC_API_1_1_2 *apiPointer) {
+   if(apiPointer) apiPointer->StartFrameCapture(NULL, NULL);
+   std::cout << "We started, gaben.\n";
+}
+
+void endCapture(RENDERDOC_API_1_1_2 *apiPointer) {
+   if(apiPointer) apiPointer->EndFrameCapture(NULL, NULL);
+   std::cout << "We stopped, gaben.\n";
+}
 }
