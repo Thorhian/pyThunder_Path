@@ -13,6 +13,9 @@ import Helper_Functions as hf
 from Discretized_Model import DiscretizedModel
 from computeWorker import ComputeWorker
 
+sys.path.insert(0, sys.path[0] + '/renderdoc_ctypes')
+from renderdoc_api import RenderDocAPI
+
 class Job:
     '''
     A class to handle the setup of the rendering of a targetted object
@@ -20,18 +23,26 @@ class Job:
     '''
 
     def __init__(self, target_model, stock_model, obstacles: list,
-                 tool_diam: float, target_res: float = 0.1):
+                 tool_diam: float, target_res: float = 0.1, debug = False):
         self.target_model = target_model
         self.stock_model = stock_model
         self.obstacles = obstacles
         self.tool_diam = tool_diam
         self.target_res = target_res
+        self.debug = debug
         self.ctx = moderngl.create_standalone_context()
         self.bounds = self.calculate_bounds()
         self.img_res = self.calculate_resolution(self.bounds)
+        
+        if self.debug:
+            self.api = RenderDocAPI()
+
         self.setup_opengl_objects()
         self.d_model = DiscretizedModel(target_res)
 
+    def __del__(self):
+        if self.debug:
+            self.api.stop_capture()
 
     def calculate_bounds(self):
         '''
@@ -62,6 +73,9 @@ class Job:
         '''
         Creates VBOs, Programs, VAOs, and FBOs for the job.
         '''
+
+        if self.debug:
+            self.api.start_capture()
         
         GL_RGBA2 = 0x8055
 
