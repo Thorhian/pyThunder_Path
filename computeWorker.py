@@ -68,8 +68,9 @@ class ComputeWorker:
         self.initial_state = self.ctx.texture(self.image_res, 4)
         self.initial_state.write(target_images[0])
         self.stock_buffer.write(target_images[1])
-        self.island_gen_prog['fullRender'] = 1
-        self.island_gen_prog['stockOnlyRender'] = 2
+        print(self.island_gen_prog._members)
+        self.island_gen_prog['fullRender'] = 0
+        #self.island_gen_prog['stockOnlyRender'] = 1
         self.stock_buffer.use(2)
         self.initial_state.use(1)
         self.island_buffer = self.ctx.buffer(reserve=buffer_size)
@@ -85,7 +86,7 @@ class ComputeWorker:
         self.island_fbo.clear()
         self.island_fbo.use()
         self.island_gen_vao.render(moderngl.TRIANGLE_STRIP)
-        self.island_fbo.read_into(self.island_buffer)
+        self.island_fbo.read_into(self.island_buffer, components=4)
 
     def check_cut(self, center1, center2, radius):
         self.counter_compute['circleCenters'] = center1[0], center1[1], center2[0], center2[1]

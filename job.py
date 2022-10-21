@@ -286,7 +286,10 @@ class Job:
             ])
         tool_radius = self.tool_diam / 2 / self.target_res
         worker: ComputeWorker = ComputeWorker(self.target_res, self.d_model.images[image_count - 1], self.img_res)
-
+        island_buffer = np.frombuffer(worker.island_buffer.read(), dtype='u1')
+        island_buffer = np.reshape(island_buffer, (self.img_res[1], self.img_res[0], 4))
+        island_buffer = np.flip(island_buffer, 0)
+        island_image = Image.fromarray(island_buffer)
         for indice in range(cutDirections.shape[0] - 1):
             start = cutDirections[indice]
             stop = cutDirections[(indice + 1)]
@@ -296,5 +299,6 @@ class Job:
 
         for counter, image in enumerate(test_imgs):
             image.save(f"./renders/testCut{counter}.png")
+        island_image.save(f"./renders/islands.png")
 
         return 0;
