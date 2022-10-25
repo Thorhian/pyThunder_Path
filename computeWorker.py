@@ -111,26 +111,18 @@ class ComputeWorker:
             seeds = np.argwhere(img[:, :, 2] > 250)
             if seeds.size > 0:
                 seed_coord = seeds[0]
+                seed_coord = np.array([seed_coord[1], seed_coord[0]])
             else:
-                print("gaben")
                 break
 
-            print(f"Seed Coord: {seed_coord}")
             floodval = (0, color, 0)
             lower_range = np.array([0, color, 0])
             upper_range = np.array([0, color, 0])
-            print(f"Pixel Value Before Flood: {img[seed_coord[0], seed_coord[1]]}")
             cv2.floodFill(img, None, seedPoint=seed_coord, newVal=floodval)
-            print(f"Pixel Value After Flood: {img[seed_coord[0], seed_coord[1]]}")
             mask = cv2.inRange(img, lower_range, upper_range)
-            cv2.imshow("image", img)
-            cv2.waitKey()
-            cv2.imshow("image", mask)
-            cv2.waitKey()
-            img = img.copy()
 
-            #print(sys.getsizeof(no_alpha) / 1000000)
-            #print(sys.getsizeof(mask)/ 1000000)
+            mask_size = sys.getsizeof(mask)
+            self.island_list.append((color, mask_size, mask.copy()))
 
     def check_cut(self, center1, center2, radius):
         self.counter_compute['circleCenters'] = center1[0], center1[1], center2[0], center2[1]
