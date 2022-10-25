@@ -3,6 +3,9 @@ from typing import Tuple
 import Helper_Functions as hf
 import moderngl
 import numpy as np
+from PIL import Image, ImageDraw
+import cv2
+import sys
 
 class ComputeWorker:
     '''
@@ -87,6 +90,51 @@ class ComputeWorker:
         self.island_fbo.use()
         self.island_gen_vao.render(moderngl.TRIANGLE_STRIP)
         self.island_fbo.read_into(self.island_buffer, components=4)
+
+        island_data = np.frombuffer(self.island_buffer.read(), dtype='u1')
+        island_data = np.reshape(island_data, (self.image_res[1], self.image_res[0], 4))
+        self.color_fill = Image.fromarray(island_data, mode="RGBA")
+        size = self.color_fill.size
+        print(size)
+        #for index in range(size[0] * size[1]):
+        #    x = index % size[0]
+        #    y = index // size[1]
+        #    if self.color_fill.getpixel((x, y)) == (0, 0, 0, 255):
+        #        ImageDraw.floodfill(self.color_fill, (x, y), (0, 100, 0, 255))
+
+        self.island_list = []
+
+        no_alpha = cv2.cvtColor(island_data, cv2.COLOR_RGBA2RGB)
+        img = no_alpha.copy()
+        #cv2.imshow("Image", no_alpha)
+        #cv2.waitKey()
+        for color in range(1, 255):
+            print(img.flags)
+            seeds = np.argwhere(img[:, :, 2] > 250)
+            print(seeds.flags)
+            if seeds.size > 0:
+                seed_coord = seeds[0]
+            else:
+                print("gaben")
+                break
+                    
+            floodval = (0, color, 0)
+            lower_range = np.array([0, color, 0])
+            upper_range = np.array([0, color, 0])
+            print(img[seed_coord[0], seed_coord[1]])
+            cv2.floodFill(img, None, seedPoint=seed_coord, newVal=floodval)
+            print(img[seed_coord[0], seed_coord[1]])
+            mask = cv2.inRange(img, lower_range, upper_range)
+            print(seed_coord)
+            cv2.imshow("image", img)
+            cv2.waitKey()
+            cv2.imshow("image", mask)
+            cv2.waitKey()
+
+            print(sys.getsizeof(no_alpha) / 1000000)
+            print(sys.getsizeof(mask)/ 1000000)
+
+        print(len(self.island_list))
 
     def check_cut(self, center1, center2, radius):
         self.counter_compute['circleCenters'] = center1[0], center1[1], center2[0], center2[1]
