@@ -11,7 +11,7 @@ import Helper_Functions as hf
 
 isDebugModeOn = False
 # Units should be in Metric.
-target_res_per_pixel = 0.1 #Width/Height of each pixel
+target_res_per_pixel = 0.5 #Width/Height of each pixel
 
 for arg in sys.argv:
     if arg == '--help' or arg == '-h':

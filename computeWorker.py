@@ -106,35 +106,31 @@ class ComputeWorker:
 
         no_alpha = cv2.cvtColor(island_data, cv2.COLOR_RGBA2RGB)
         img = no_alpha.copy()
-        #cv2.imshow("Image", no_alpha)
-        #cv2.waitKey()
+
         for color in range(1, 255):
-            print(img.flags)
             seeds = np.argwhere(img[:, :, 2] > 250)
-            print(seeds.flags)
             if seeds.size > 0:
                 seed_coord = seeds[0]
             else:
                 print("gaben")
                 break
-                    
+
+            print(f"Seed Coord: {seed_coord}")
             floodval = (0, color, 0)
             lower_range = np.array([0, color, 0])
             upper_range = np.array([0, color, 0])
-            print(img[seed_coord[0], seed_coord[1]])
+            print(f"Pixel Value Before Flood: {img[seed_coord[0], seed_coord[1]]}")
             cv2.floodFill(img, None, seedPoint=seed_coord, newVal=floodval)
-            print(img[seed_coord[0], seed_coord[1]])
+            print(f"Pixel Value After Flood: {img[seed_coord[0], seed_coord[1]]}")
             mask = cv2.inRange(img, lower_range, upper_range)
-            print(seed_coord)
             cv2.imshow("image", img)
             cv2.waitKey()
             cv2.imshow("image", mask)
             cv2.waitKey()
+            img = img.copy()
 
-            print(sys.getsizeof(no_alpha) / 1000000)
-            print(sys.getsizeof(mask)/ 1000000)
-
-        print(len(self.island_list))
+            #print(sys.getsizeof(no_alpha) / 1000000)
+            #print(sys.getsizeof(mask)/ 1000000)
 
     def check_cut(self, center1, center2, radius):
         self.counter_compute['circleCenters'] = center1[0], center1[1], center2[0], center2[1]
