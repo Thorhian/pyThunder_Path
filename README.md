@@ -2,6 +2,10 @@
 
  ![A Jowwi, a raptor-like creature, created by DarkEdgeTV. This specific model was made by me.](./exampleImages/cutting.gif "Additive slices of a sculpted 3D model.")
 
+ A Jowwi, a raptor-like creature, created by Rebecca "DarkEdgeTV". This creature and
+ some of her artwork can be found on ArtStation: https://www.artstation.com/artwork/gZW4E
+ The specific 3D Mesh used in this example render GIF was created by myself, Thorhian.
+
 ## The Goal:
 A prototype program for creating tool paths for CNC Milling Machines,
 controlling the engagement of endmills to the stock material to be cut. 
