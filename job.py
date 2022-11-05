@@ -233,20 +233,24 @@ class Job:
             if current_depth > model_depth:
                 break
 
+            buffer_size = self.img_res[0] * self.img_res[1] * 4
+            result_buffer = self.ctx.buffer(reserve=buffer_size)
             self.change_ortho_matrix(current_depth)
             print(f"Render depth: {current_depth}")
             self.render()
-            result_image = self.fbo3.read(components=4, dtype='f1')
-            stock_only = self.stock_only_buffer.read()
-            self.d_model.add_layer((result_image, stock_only), current_depth)
+            self.fbo3.read_into(buffer=result_buffer, components=4, dtype='f1')
+            stock_only = self.stock_only_buffer
+            self.d_model.add_layer((result_buffer, stock_only), current_depth)
 
         if current_depth != model_depth:
+            buffer_size = self.img_res[0] * self.img_res[1] * 4
+            result_buffer = self.ctx.buffer(reserve=buffer_size)
             print(f"Render depth: {model_depth}")
             self.change_ortho_matrix(model_depth)
             self.render()
-            result_image = self.fbo3.read(components=4, dtype='f1')
-            stock_only = self.stock_only_buffer.read()
-            self.d_model.add_layer((result_image, stock_only), current_depth)
+            self.fbo3.read_into(buffer=result_buffer, components=4, dtype='f1')
+            stock_only = self.stock_only_buffer
+            self.d_model.add_layer((result_buffer, stock_only), current_depth)
 
     def save_images(self):
         if not os.path.exists("renders"):
@@ -254,7 +258,7 @@ class Job:
 
         counter = 0
         for render in self.d_model.images:
-            image = np.frombuffer(render[0], dtype='u1')
+            image = np.frombuffer(render[0].read(), dtype='u1')
             image = np.reshape(image, (self.img_res[1], self.img_res[0], 4))
             image = np.flip(image, 0)
             image = Image.fromarray(image)
