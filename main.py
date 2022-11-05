@@ -36,9 +36,6 @@ stock_mesh = mesh.Mesh.from_file(stlStockModel, speedups=False)
 depth_of_cut = float(sys.argv[3])
 tool_diameter = float(sys.argv[4])
 
-# stock_dims = (-50, 50, -80, 80, 0, 31.75)
-# stock_model = geometry_gens.generate_box(stock_dims)
-
 newJob = Job(model_mesh, stock_mesh, [],
              tool_diameter, target_res=target_res_per_pixel,
              debug=isDebugModeOn)
