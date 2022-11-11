@@ -46,10 +46,9 @@ class ComputeWorker:
         self.initial_state.write(target_images[0])
         self.stock_buffer.write(target_images[1])
         print(f"Island Gen Program: {self.island_gen_prog._members}")
-        self.island_gen_prog['fullRender'] = 0
+        self.island_gen_prog['fullRender'] = 6
         #self.island_gen_prog['stockOnlyRender'] = 1
-        self.stock_buffer.use(2)
-        self.initial_state.use(1)
+        self.initial_state.use(6)
         self.island_buffer = self.ctx.buffer(reserve=self.buffer_size)
         self.island_fbo = self.ctx.simple_framebuffer(self.image_res, components=4)
 
@@ -61,50 +60,35 @@ class ComputeWorker:
 
         target_buffer = self.classify_islands(target_images[0])
 
-        self.island_fbo.release()
         self.island_buffer.release()
 
         #Setup cutting pixel counter compute shader
         count_program = hf.load_shader("./shaders/count_colors.glsl")
         self.counter_compute: moderngl.ComputeShader = self.ctx.compute_shader(count_program)
-        print(f"Cut Counter Compute Shader: {self.counter_compute._members}")
         self.image_buffer = self.ctx.texture(self.image_res, 4)
         self.image_buffer.write(target_buffer)
         target_buffer.release()
-        print("Written profile edited buffer to image_buffer.")
         self.depthBuffer = self.ctx.depth_texture(self.image_res)
         self.image_buffer.bind_to_image(1)
-        print("Bound image_buffer to image unit")
         self.image_buffer.use(5)
-        print("Bound image_buffer to texture unit 5")
         self.counter_compute['imageSlice'] = 1
-        print("Set Compute Shader imageSlice to look at image 1")
         dtype = np.dtype('u4')
         uint_counters = np.array([0, 0, 0, 0,], dtype=dtype)
         self.uint_buffer = self.ctx.buffer(uint_counters)
         self.uint_buffer.bind_to_storage_buffer(1)
-        print("Created and bound atomic counters to SSBO")
 
         #Setup painter/cutter shader program and vao
         paint_frag_code = hf.load_shader("./shaders/painter.frag")
         self.painter_prog = self.ctx.program(vertex_shader=image_vertex_code,
                 fragment_shader=paint_frag_code)
-        print("Painter code and program loaded.")
 
         self.painter_prog['prev_render'] = 5
-        print("Painter Program prev_render to to texture unit 5")
 
         self.painter_vao = self.ctx.vertex_array(self.painter_prog, [
             (imageVerts_vbo, '2f', 'in_position')
             ])
-        print("Created painter_vao")
-        self.paintOut = self.ctx.texture(self.image_res, 4)
-        print("paintOut texture buffer created")
-        self.paint_fbo = self.ctx.framebuffer([self.paintOut], self.depthBuffer)
-        print("paint_fbo framebuffer created")
-        self.paint_fbo.clear(0.0, 0.0, 0.0, 0.0)
 
-        print("Compute Init Completed!")
+        self.cut_buffer = self.ctx.buffer(reserve=self.buffer_size)
 
     def generate_islands(self):
         '''
@@ -233,20 +217,17 @@ class ComputeWorker:
         quadUniform.write(quad.flatten()) #type: ignore
         quadIUniform.write(sorted_quad_indices) #type: ignore
 
-        self.paint_fbo.clear()
-        self.paint_fbo.use()
+        self.island_fbo.use()
+        self.island_fbo.clear()
         self.painter_vao.render(moderngl.TRIANGLE_STRIP)
-        self.ctx.finish()
 
-        temp_buf = self.paintOut.read(alignment=4)
-        self.image_buffer.write(temp_buf)
+        self.island_fbo.read_into(self.cut_buffer, components=4, dtype='f1')
+        self.image_buffer.write(self.cut_buffer)
 
-        #self.paint_fbo.clear()
-        #self.paint_fbo.use()
 
 
     def retrieve_image(self):
-        image = np.frombuffer(self.paint_fbo.read(components=4, dtype='f1'), dtype='u1')
+        image = np.frombuffer(self.image_buffer.read(), dtype='u1')
         image = np.reshape(image, (self.image_res[1], self.image_res[0], 4))
         image = np.flip(image, 0)
         return image
