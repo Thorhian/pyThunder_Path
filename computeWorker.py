@@ -3,7 +3,7 @@ from typing import Tuple
 import Helper_Functions as hf
 import moderngl
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image
 import cv2
 import sys
 
@@ -15,68 +15,42 @@ class ComputeWorker:
     def __init__(self,
             pixel_res: float,
             target_images: Tuple[bytes, bytes],
-            img_res
+            img_res,
+            diameter,
             ):
         self.pixel_res = pixel_res
         self.ctx = moderngl.create_standalone_context()
         self.ctx.enable(moderngl.DEPTH_TEST)
         self.image_res = img_res
+        self.tool_diameter = diameter
 
-
-        #Setup cutting pixel counter compute shader
-        count_program = hf.load_shader("./shaders/count_colors.glsl")
-        self.counter_compute: moderngl.ComputeShader = self.ctx.compute_shader(count_program)
-        self.image_buffer = self.ctx.texture(self.image_res, 4)
-        self.image_buffer.write(target_images[0])
-        self.depthBuffer = self.ctx.depth_texture(self.image_res)
-        self.image_buffer.bind_to_image(1)
-        self.image_buffer.use(0)
-        self.counter_compute['imageSlice'] = 1
-        dtype = np.dtype('u4')
-        uint_counters = np.array([0, 0, 0, 0,], dtype=dtype)
-        self.uint_buffer = self.ctx.buffer(uint_counters)
-        self.uint_buffer.bind_to_storage_buffer(1)
-
-        #Setup painter/cutter shader program and vao
-        image_vertex_code = hf.load_shader("./shaders/image_shader.vert")
-        paint_frag_code = hf.load_shader("./shaders/painter.frag")
-        self.painter_prog = self.ctx.program(vertex_shader=image_vertex_code,
-                fragment_shader=paint_frag_code)
-
-        image_vertices = np.array([
+        #Setup buffers and program/vao for stock island detection.
+        self.image_vertices = np.array([
             -1, 1,
             -1, -1,
             1, 1,
             1, -1,
         ], dtype='f4')
-        self.painter_prog['prev_render'] = 0
+        imageVerts_vbo = self.ctx.buffer(self.image_vertices)
 
-        imageVerts_vbo = self.ctx.buffer(image_vertices)
-        self.painter_vao = self.ctx.vertex_array(self.painter_prog, [
-            (imageVerts_vbo, '2f', 'in_position')
-            ])
-        self.paintOut = self.ctx.texture(self.image_res, 4)
-        self.paint_fbo = self.ctx.framebuffer([self.paintOut], self.depthBuffer)
-        self.paint_fbo.clear(0.0, 0.0, 0.0, 0.0)
-
-        #Setup buffers and program/vao for stock island detection.
+        image_vertex_code = hf.load_shader("./shaders/image_shader.vert")
         island_gen_code = hf.load_shader("./shaders/islandGenerator.frag")
         self.island_gen_prog = self.ctx.program(
                 vertex_shader=image_vertex_code,
                 fragment_shader=island_gen_code
                 )
 
-        buffer_size = self.image_res[0] * self.image_res[1] * 4
+        self.buffer_size = self.image_res[0] * self.image_res[1] * 4
         self.stock_buffer = self.ctx.texture(self.image_res, 4)
         self.initial_state = self.ctx.texture(self.image_res, 4)
         self.initial_state.write(target_images[0])
         self.stock_buffer.write(target_images[1])
-        print(self.island_gen_prog._members)
+        print(f"Island Gen Program: {self.island_gen_prog._members}")
         self.island_gen_prog['fullRender'] = 0
         #self.island_gen_prog['stockOnlyRender'] = 1
         self.stock_buffer.use(2)
         self.initial_state.use(1)
-        self.island_buffer = self.ctx.buffer(reserve=buffer_size)
+        self.island_buffer = self.ctx.buffer(reserve=self.buffer_size)
         self.island_fbo = self.ctx.simple_framebuffer(self.image_res, components=4)
 
         self.island_gen_vao = self.ctx.vertex_array(self.island_gen_prog, [
@@ -85,7 +59,60 @@ class ComputeWorker:
 
         self.generate_islands()
 
+        target_buffer = self.classify_islands(target_images[0])
+
+        self.island_fbo.release()
+        self.island_buffer.release()
+
+        #Setup cutting pixel counter compute shader
+        count_program = hf.load_shader("./shaders/count_colors.glsl")
+        self.counter_compute: moderngl.ComputeShader = self.ctx.compute_shader(count_program)
+        print(f"Cut Counter Compute Shader: {self.counter_compute._members}")
+        self.image_buffer = self.ctx.texture(self.image_res, 4)
+        self.image_buffer.write(target_buffer)
+        target_buffer.release()
+        print("Written profile edited buffer to image_buffer.")
+        self.depthBuffer = self.ctx.depth_texture(self.image_res)
+        self.image_buffer.bind_to_image(1)
+        print("Bound image_buffer to image unit")
+        self.image_buffer.use(5)
+        print("Bound image_buffer to texture unit 5")
+        self.counter_compute['imageSlice'] = 1
+        print("Set Compute Shader imageSlice to look at image 1")
+        dtype = np.dtype('u4')
+        uint_counters = np.array([0, 0, 0, 0,], dtype=dtype)
+        self.uint_buffer = self.ctx.buffer(uint_counters)
+        self.uint_buffer.bind_to_storage_buffer(1)
+        print("Created and bound atomic counters to SSBO")
+
+        #Setup painter/cutter shader program and vao
+        paint_frag_code = hf.load_shader("./shaders/painter.frag")
+        self.painter_prog = self.ctx.program(vertex_shader=image_vertex_code,
+                fragment_shader=paint_frag_code)
+        print("Painter code and program loaded.")
+
+        self.painter_prog['prev_render'] = 5
+        print("Painter Program prev_render to to texture unit 5")
+
+        self.painter_vao = self.ctx.vertex_array(self.painter_prog, [
+            (imageVerts_vbo, '2f', 'in_position')
+            ])
+        print("Created painter_vao")
+        self.paintOut = self.ctx.texture(self.image_res, 4)
+        print("paintOut texture buffer created")
+        self.paint_fbo = self.ctx.framebuffer([self.paintOut], self.depthBuffer)
+        print("paint_fbo framebuffer created")
+        self.paint_fbo.clear(0.0, 0.0, 0.0, 0.0)
+
+        print("Compute Init Completed!")
+
     def generate_islands(self):
+        '''
+        Takes an additive slice and generates masks that represent each
+        stock island. A list of the of the island masks is returned,
+        containing the number representing the island, the size of the
+        mask, and the mask itself.
+        '''
         self.island_fbo.clear()
         self.island_fbo.use()
         self.island_gen_vao.render(moderngl.TRIANGLE_STRIP)
@@ -96,11 +123,6 @@ class ComputeWorker:
         self.color_fill = Image.fromarray(island_data, mode="RGBA")
         size = self.color_fill.size
         print(size)
-        #for index in range(size[0] * size[1]):
-        #    x = index % size[0]
-        #    y = index // size[1]
-        #    if self.color_fill.getpixel((x, y)) == (0, 0, 0, 255):
-        #        ImageDraw.floodfill(self.color_fill, (x, y), (0, 100, 0, 255))
 
         self.island_list = []
 
@@ -108,7 +130,7 @@ class ComputeWorker:
         img = no_alpha.copy()
 
         for color in range(1, 255):
-            seeds = np.argwhere(img[:, :, 2] > 250)
+            seeds = np.argwhere(img[:, :, 2] > 250) #type: ignore
             if seeds.size > 0:
                 seed_coord = seeds[0]
                 seed_coord = np.array([seed_coord[1], seed_coord[0]])
@@ -122,7 +144,63 @@ class ComputeWorker:
             mask = cv2.inRange(img, lower_range, upper_range)
 
             mask_size = sys.getsizeof(mask)
-            self.island_list.append((color, mask_size, mask.copy()))
+            self.island_list.append([color, mask_size, mask.copy()])
+
+    def classify_islands(self, imageSlice):
+        #Get Buffers/Render Target Ready
+        inputMaskBuffer = self.ctx.buffer(reserve=self.island_list[0][1])
+        sliceInputBuffer = self.ctx.buffer(reserve=self.buffer_size)
+        sliceInputBuffer.write(imageSlice)
+        slice = self.ctx.texture(self.image_res, 4)
+        slice.write(sliceInputBuffer)
+        current_mask = self.ctx.texture(self.image_res, 1)
+        sliceOut = self.ctx.texture(self.image_res, 4)
+        depthBuf = self.ctx.depth_texture(self.image_res)
+        fbo = self.ctx.framebuffer([sliceOut], depthBuf)
+        imageVBO = self.ctx.buffer(self.image_vertices)
+
+        #Get Programs/VAOs ready
+        imageVertexCode = hf.load_shader("./shaders/image_shader.vert")
+        profileDetectionCode = hf.load_shader("./shaders/profile_detection.frag")
+        profileSearchProgram = self.ctx.program(
+            vertex_shader=imageVertexCode,
+            fragment_shader=profileDetectionCode
+        )
+        print(profileSearchProgram._members)
+        profileSearchProgram['slice'] = 0
+        profileSearchProgram['islandMask'] = 1
+        #profileSearchProgram['outColor'] = 2
+        profileSearchProgram['cutterRadius'] = self.tool_diameter / 2
+        slice.use(location=0)
+        current_mask.use(location=1)
+        fbo.clear()
+        fbo.use()
+
+        profileDetectionVAO = self.ctx.vertex_array(
+            profileSearchProgram,
+            [ 
+                (imageVBO, '2f', 'in_position')
+            ])
+        
+        
+        for island in self.island_list:
+            inputMaskBuffer.write(island[2])
+            current_mask.write(inputMaskBuffer)
+            profileDetectionVAO.render(moderngl.TRIANGLE_STRIP)
+            fbo.read_into(sliceInputBuffer, components=4)
+            slice.write(sliceInputBuffer)
+
+        
+
+        #Release GPU Memory, Please
+        inputMaskBuffer.release()
+        slice.release()
+        current_mask.release()
+        sliceOut.release()
+        fbo.release()
+        imageVBO.release()
+
+        return sliceInputBuffer
 
     def check_cut(self, center1, center2, radius):
         self.counter_compute['circleCenters'] = center1[0], center1[1], center2[0], center2[1]
@@ -163,8 +241,8 @@ class ComputeWorker:
         temp_buf = self.paintOut.read(alignment=4)
         self.image_buffer.write(temp_buf)
 
-        self.paint_fbo.clear()
-        self.paint_fbo.use()
+        #self.paint_fbo.clear()
+        #self.paint_fbo.use()
 
 
     def retrieve_image(self):
