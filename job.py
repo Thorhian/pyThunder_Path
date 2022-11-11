@@ -41,6 +41,19 @@ class Job:
         self.d_model = DiscretizedModel(target_res)
 
     def __del__(self):
+        self.firstPass.release()
+        self.firstPassDepth.release()
+        self.secondPass.release()
+        self.secondPassDepth.release()
+        self.thirdPass.release()
+        self.thirdPassDepth.release()
+        self.vbo_model.release()
+        self.vbo_stock.release()
+        self.color_buffer.release()
+        self.color_stock.release()
+        self.vao1.release()
+        self.vao2.release()
+        self.vao3.release()
         if self.debug:
             self.api.stop_capture()
 
@@ -98,13 +111,13 @@ class Job:
                                             fragment_shader=edge_expand_frag_shader)
 
         #Create Textures
-        firstPass = self.ctx.texture(self.img_res, 4)
+        self.firstPass = self.ctx.texture(self.img_res, 4)
         stockPassDepth = self.ctx.depth_texture(self.img_res)
-        firstPassDepth = self.ctx.depth_texture(self.img_res)
-        secondPass = self.ctx.texture(self.img_res, 4)
-        secondPassDepth = self.ctx.depth_texture(self.img_res)
-        thirdPass = self.ctx.texture(self.img_res, 4, dtype='f1', internal_format=GL_RGBA2)
-        thirdPassDepth = self.ctx.depth_texture(self.img_res)
+        self.firstPassDepth = self.ctx.depth_texture(self.img_res)
+        self.secondPass = self.ctx.texture(self.img_res, 4)
+        self.secondPassDepth = self.ctx.depth_texture(self.img_res)
+        self.thirdPass = self.ctx.texture(self.img_res, 4, dtype='f1', internal_format=GL_RGBA2)
+        self.thirdPassDepth = self.ctx.depth_texture(self.img_res)
 
         print(self.bounds[4], ',', self.bounds[5])
 
@@ -119,9 +132,9 @@ class Job:
 
         #Get textures properly assigned to uniform samplers
         edge_detection_prog["prev_render"] = 4
-        firstPass.use(location=4)
+        self.firstPass.use(location=4)
         edge_expand_prog["prev_render"] = 3
-        secondPass.use(location=3)
+        self.secondPass.use(location=3)
 
         #Calculate cutter radius in pixels for edge expand algorithm
         edge_expand_prog["cutterRadius"] = (self.tool_diam / 2) / self.target_res
@@ -179,10 +192,10 @@ class Job:
 
         buffer_size = self.img_res[0] * self.img_res[1] * 4
         self.stock_only_buffer = self.ctx.buffer(reserve=buffer_size)
-        self.fbo_stock = self.ctx.framebuffer([firstPass], stockPassDepth)
-        self.fbo1 = self.ctx.framebuffer([firstPass], firstPassDepth)
-        self.fbo2 = self.ctx.framebuffer([secondPass], secondPassDepth)
-        self.fbo3 = self.ctx.framebuffer([thirdPass], thirdPassDepth)
+        self.fbo_stock = self.ctx.framebuffer([self.firstPass], stockPassDepth)
+        self.fbo1 = self.ctx.framebuffer([self.firstPass], self.firstPassDepth)
+        self.fbo2 = self.ctx.framebuffer([self.secondPass], self.secondPassDepth)
+        self.fbo3 = self.ctx.framebuffer([self.thirdPass], self.thirdPassDepth)
         self.fbo1.clear(0.0, 0.0, 0.0, 0.0)
         self.fbo2.clear(0.0, 0.0, 0.0, 0.0)
         self.fbo3.clear(0.0, 0.0, 0.0, 0.0)
@@ -268,8 +281,6 @@ class Job:
 
         shape = self.img_res
         print(shape)
-        image_center = (shape[1] / 2, shape[0] / 2)
-        #cut_destination = (shape[1] / 2 + -100, shape[0] / 2 + 60)
 
         image_count = len(self.d_model.images)
         test_imgs = []
@@ -285,11 +296,7 @@ class Job:
                 [shape[1] * 0.16, shape[0] * 0.04],
             ])
         tool_radius = self.tool_diam / 2 / self.target_res
-        worker: ComputeWorker = ComputeWorker(self.target_res, self.d_model.images[image_count - 1], self.img_res)
-        island_buffer = np.frombuffer(worker.island_buffer.read(), dtype='u1')
-        island_buffer = np.reshape(island_buffer, (self.img_res[1], self.img_res[0], 4))
-        island_buffer = np.flip(island_buffer, 0)
-        island_image = Image.fromarray(island_buffer)
+        worker: ComputeWorker = ComputeWorker(self.target_res, self.d_model.images[image_count - 1], self.img_res, self.tool_diam)
         for indice in range(cutDirections.shape[0] - 1):
             start = cutDirections[indice]
             stop = cutDirections[(indice + 1)]
@@ -299,6 +306,6 @@ class Job:
 
         for counter, image in enumerate(test_imgs):
             image.save(f"./renders/testCut{counter}.png")
-        island_image.save(f"./renders/islands.png")
+        worker.color_fill.save(f"./renders/islands.png")
 
         return 0;

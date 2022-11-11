@@ -1,6 +1,6 @@
 # CETP Prototype
 
- ![A Jowwi, a raptor-like creature, by DarkEdgeTV, model made by me.](./exampleImages/cutting.gif "Additive slices of a sculpted 3D model.")
+ ![A Jowwi, a raptor-like creature, created by DarkEdgeTV. This specific model was made by me.](./exampleImages/cutting.gif "Additive slices of a sculpted 3D model.")
 
  A Jowwi, a raptor-like creature, created by Rebecca "DarkEdgeTV". This creature and
  some of her artwork can be found on ArtStation: https://www.artstation.com/artwork/gZW4E
@@ -29,12 +29,80 @@ etc), we would not be living in the world we have today.
 
 ## Current Progress:
 
-    - Model and stock geometry are loaded as stl files, given by command line arguments.
+    - Model and stock geometry are loaded as STL files, given by command line arguments.
     - Rendering of the target model and stock geometry works
     - Edge Detection and Edge expansion algorithms in GLSL are working
     - GLSL Compute Shader for counting pixel types has been implemented
     - GLSL Fragment shader for performing "cuts" on rendered images has been implemented.
     - Added a small path example to cut around the perimeter of the image.
+    - Stock Island Detection and Labeling Working Thanks to OpenCV
+
+## How To Run
+
+pyThunder_Path does not yet generate tool paths, but you can
+run what has been created so far and see some of the rendered
+images that will be used for generating those tool paths.
+
+First, clone the repository wherever you want to keep the software:
+
+```
+git clone https://github.com/Thorhian/pyThunder_Path.git
+```
+
+You can use ssh if you want:
+
+```
+git clone git@github.com:Thorhian/pyThunder_Path.git
+```
+
+pyThunder_Path uses the Pipenv tool to manage a python virtual environment. If
+you would like to use pipenv, make sure it is installed on your system first.
+Once you have it, simply enter the repository folder and run:
+
+```
+pipenv install
+```
+
+This will setup a python virtual environment and install the needed packages
+inside of that environment to run pyThunder_Path. If you would like to
+make running the software in your terminal easier, you can run `pipenv shell`.
+This will make your terminal enter that python virtual environment, you
+can run from inside it. If you don't want to do that, you will need
+to prepend `pipenv run` to all commands used to activate pyThunder_Path.
+
+pyThunder_Path will be receiving a TCP/JSON interface to receive 3D model
+and other needed data to generate tool paths and will send the generated
+tool paths back to the client that requested them. For now though, you
+can run pyThunder_Path in your terminal/command line prompt.
+
+```
+python3 ./main.py /path/to/target/model.stl /path/to/stock/model.stl 12 9.525
+```
+
+If you are using `pipenv run`, please replace `python3` (or just `python`)
+with `pipenv run`.
+
+`./main.py` is the driver script that initiates pyThunder_CAM from the
+terminal/command prompt currently. The next two command line arguments
+are the file locations of the STL files that represent the model you
+want to be created by your CNC Machine and the STL model that represents
+the stock material that will be cut to form that target model. The two
+numbers at the end represent the step-down value and the diameter of
+the endmill. **_All_** units are assumed to be in millimeters, including
+the STL files.
+
+### STL Files: Note of Caution
+When exporting an STL file, please make sure of two things:
+
+1. Ensure that the units being used to export the STL' files are in
+   millimeters. STL files do not contain scale/unit information inside of them.
+   pyThunder_Path currently performs all of it's calculations assumining that
+   all length units of measurement are in millimeters.
+2. Ensure that the vertices that make up your models in the STL files use the
+   model's global/world space instead of it's local space. Essentially,
+   the models need to have their vertices to be set to where they will be
+   in the coordinate system that represents the work envelope of you CNC
+   milling machine.
     
 ## The Method To The Madness
 
