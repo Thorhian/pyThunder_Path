@@ -35,11 +35,11 @@ void *checkGetAPI() {
 
 void startCapture(RENDERDOC_API_1_1_2 *apiPointer) {
    if(apiPointer) apiPointer->StartFrameCapture(NULL, NULL);
-   std::cout << "We started, gaben.\n";
+   std::cout << "RenderDoc Capture Started, gaben.\n";
 }
 
 void endCapture(RENDERDOC_API_1_1_2 *apiPointer) {
    if(apiPointer) apiPointer->EndFrameCapture(NULL, NULL);
-   std::cout << "We stopped, gaben.\n";
+   std::cout << "RenderDoc Capture Finished, gaben.\n";
 }
 }
