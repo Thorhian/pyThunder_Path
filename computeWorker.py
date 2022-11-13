@@ -45,9 +45,7 @@ class ComputeWorker:
         self.initial_state = self.ctx.texture(self.image_res, 4)
         self.initial_state.write(target_images[0])
         self.stock_buffer.write(target_images[1])
-        print(f"Island Gen Program: {self.island_gen_prog._members}")
         self.island_gen_prog['fullRender'] = 6
-        #self.island_gen_prog['stockOnlyRender'] = 1
         self.initial_state.use(6)
         self.island_buffer = self.ctx.buffer(reserve=self.buffer_size)
         self.island_fbo = self.ctx.simple_framebuffer(self.image_res, components=4)
@@ -105,8 +103,6 @@ class ComputeWorker:
         island_data = np.frombuffer(self.island_buffer.read(), dtype='u1')
         island_data = np.reshape(island_data, (self.image_res[1], self.image_res[0], 4))
         self.color_fill = Image.fromarray(island_data, mode="RGBA")
-        size = self.color_fill.size
-        print(size)
 
         self.island_list = []
 
@@ -150,7 +146,6 @@ class ComputeWorker:
             vertex_shader=imageVertexCode,
             fragment_shader=profileDetectionCode
         )
-        print(profileSearchProgram._members)
         profileSearchProgram['slice'] = 0
         profileSearchProgram['islandMask'] = 1
         #profileSearchProgram['outColor'] = 2
@@ -203,7 +198,9 @@ class ComputeWorker:
         dtype = np.dtype('u4')
         uint_counters = np.array([0, 0, 0, 0,], dtype=dtype)
         self.uint_buffer.write(uint_counters)
-        print(counters)
+
+        return counters
+
 
     def make_cut(self, center1, center2, radius):
         self.painter_prog['circleCenters'] = center1[0], center1[1], center2[0], center2[1]

@@ -40,6 +40,14 @@ class Job:
         self.setup_opengl_objects()
         self.d_model = DiscretizedModel(target_res)
 
+        self.degree_inc = 2
+        self.pixelSize = 1 * self.target_res
+        print(f"Image Bounds: {self.bounds}mm")
+        print(f"Image Resolution: {self.img_res}")
+        print(f"Target Resolution Modifier: {self.target_res}")
+        print(f"Pixel Height/Width: {self.pixelSize}mm")
+
+
     def __del__(self):
         self.firstPass.release()
         self.firstPassDepth.release()
@@ -119,7 +127,7 @@ class Job:
         self.thirdPass = self.ctx.texture(self.img_res, 4, dtype='f1', internal_format=GL_RGBA2)
         self.thirdPassDepth = self.ctx.depth_texture(self.img_res)
 
-        print(self.bounds[4], ',', self.bounds[5])
+        #print(self.bounds[4], ',', self.bounds[5])
 
         self.projection_matrix = glm.ortho(
             self.bounds[0], self.bounds[1], self.bounds[2],
@@ -153,7 +161,6 @@ class Job:
         bStock = np.zeros(stock_size)
         aStock = np.ones(stock_size)
         stock_colors = np.dstack([rStock, gStock, bStock, aStock]).flatten().astype('f4')
-        print(model_colors, stock_colors.shape)
         image_vertices = np.array([
             -1, 1,
             -1, -1,
@@ -247,14 +254,12 @@ class Job:
                 break
 
             self.change_ortho_matrix(current_depth)
-            print(f"Render depth: {current_depth}")
             self.render()
             result_image = self.fbo3.read(components=4, dtype='f1')
             stock_only = self.stock_only_buffer.read()
             self.d_model.add_layer((result_image, stock_only), current_depth)
 
         if current_depth != model_depth:
-            print(f"Render depth: {model_depth}")
             self.change_ortho_matrix(model_depth)
             self.render()
             result_image = self.fbo3.read(components=4, dtype='f1')
@@ -274,16 +279,66 @@ class Job:
             image.save(f"./renders/layer{counter}.png")
             counter += 1
 
+    def checkCuts(self, cw : ComputeWorker,
+                 coords : np.ndarray,
+                 direction : float,
+                 tool_rad: float,
+                 deg_inc: float,
+                 iterations: int,
+                 distance: float,
+                 clockwiseScan = True):
+        '''
+        Runs the cut counter compute shader from the given compute worker
+        multiple times, incrememting the the angle of attack multiple
+        times in order to return multiple possible cut results. It can
+        scan in a clockwise direction (the default) or counter clockwise.
+        Must be provided with the current endmill center coordinates
+        and the current direction the end mill is going.
+
+        Degree increment determines how far each iterations is rotated
+        in the determined direction (clockwise or ccw).
+        '''
+
+        if direction >= 360.0 or direction < 0.0:
+            raise Exception(f"direction should be between 0 (inclusive) to 360 (exclusive), not {direction}")
+
+        scan_direction = -1
+        if clockwiseScan == False:
+            scan_direction = 1
+            
+        movement_vector = np.array([0, distance])
+        theta = np.radians(direction)
+        theta_inc = np.radians(direction + deg_inc * scan_direction)
+        c, s = np.cos(theta), np.sin(theta)
+        c_inc, s_inc = np.cos(theta_inc), np.sin(theta_inc)
+
+        initial_rot = np.array(((c, -s), (s, c)))
+        scan_rot_v = np.array(((c_inc, -s_inc), (s_inc, c_inc)))
+
+        test_vectors = np.array([np.dot(initial_rot, movement_vector)])
+        for i in range(iterations - 1):
+            increment = np.array(np.dot(scan_rot_v, test_vectors[-1]))
+            test_vectors = np.append(test_vectors, [increment], axis=0)
+            
+        test_vectors = test_vectors + coords
+        cut_stats = []
+        for i in range(iterations):
+            cut_stats.append(cw.check_cut(np.flip(coords), np.flip(test_vectors[i]), tool_rad))
+
+        return [test_vectors, np.array(cut_stats)]
+
     def generate_paths(self):
         if len(self.d_model.images) < 1:
             print("No images loaded in discrete model.")
-            return -1;
+            return -1
 
         shape = self.img_res
-        print(shape)
 
         image_count = len(self.d_model.images)
-        test_imgs = []
+        #test_imgs = []
+        
+        img_center = np.array([self.img_res[0] / 2, self.img_res[1] / 2])
+        '''
         cutDirections: np.ndarray = np.array([
                 [shape[1] * 0.12, shape[0] * 0.03],
                 [shape[1] * 0.12, shape[0] * 0.98],
@@ -295,8 +350,20 @@ class Job:
                 [shape[1] * 0.84, shape[0] * 0.04],
                 [shape[1] * 0.16, shape[0] * 0.04],
             ])
+        '''
         tool_radius = self.tool_diam / 2 / self.target_res
         worker: ComputeWorker = ComputeWorker(self.target_res, self.d_model.images[image_count - 1], self.img_res, self.tool_diam)
+        distance = 20 / self.pixelSize
+        print(f"Distance of cut checking: {distance}mm")
+        candidates = self.checkCuts(worker, img_center,
+                                    direction=0, 
+                                    tool_rad=tool_radius,
+                                    deg_inc=20,
+                                    iterations=8,
+                                    distance=distance)
+
+        print(f"Candidate Cuts:\n {candidates}")
+        '''
         for indice in range(cutDirections.shape[0] - 1):
             start = cutDirections[indice]
             stop = cutDirections[(indice + 1)]
@@ -307,5 +374,6 @@ class Job:
         for counter, image in enumerate(test_imgs):
             image.save(f"./renders/testCut{counter}.png")
         worker.color_fill.save(f"./renders/islands.png")
+        '''
 
-        return 0;
+        return 0
