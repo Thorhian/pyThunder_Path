@@ -42,7 +42,7 @@ class Job:
 
         self.degree_inc = 2
         self.pixelSize = 1 * self.target_res
-        print(f"Image Bounds: {self.bounds}mm")
+        #print(f"Image Bounds: {self.bounds}mm")
         print(f"Image Resolution: {self.img_res}")
         print(f"Target Resolution Modifier: {self.target_res}")
         print(f"Pixel Height/Width: {self.pixelSize}mm")
@@ -84,7 +84,6 @@ class Job:
         res = (math.ceil((bounds[1] - bounds[0]) / self.target_res),
                math.ceil((bounds[3] - bounds[2]) / self.target_res))
         max_res = self.ctx.info["GL_MAX_TEXTURE_SIZE"]
-        print(f"Maximum Resolution: {max_res}")
         if res[0] > max_res or res[1] > max_res: #type: ignore
             raise Exception("Resolution is too high for GPU", res)
 
@@ -332,48 +331,45 @@ class Job:
             print("No images loaded in discrete model.")
             return -1
 
-        shape = self.img_res
-
         image_count = len(self.d_model.images)
-        #test_imgs = []
-        
         img_center = np.array([self.img_res[0] / 2, self.img_res[1] / 2])
-        '''
-        cutDirections: np.ndarray = np.array([
-                [shape[1] * 0.12, shape[0] * 0.03],
-                [shape[1] * 0.12, shape[0] * 0.98],
-                [shape[1] * 0.88, shape[0] * 0.98],
-                [shape[1] * 0.88, shape[0] * 0.03],
-                [shape[1] * 0.16, shape[0] * 0.03],
-                [shape[1] * 0.16, shape[0] * 0.96],
-                [shape[1] * 0.84, shape[0] * 0.96],
-                [shape[1] * 0.84, shape[0] * 0.04],
-                [shape[1] * 0.16, shape[0] * 0.04],
-            ])
-        '''
+        offset = np.array([0, 100])
+        bore_coord = img_center + offset
         tool_radius = self.tool_diam / 2 / self.target_res
         worker: ComputeWorker = ComputeWorker(self.target_res, self.d_model.images[image_count - 1], self.img_res, self.tool_diam)
-        distance = 20 / self.pixelSize
+
+        print(f"Image Center: {img_center}")
+        worker.make_cut(np.flip(bore_coord), np.flip(bore_coord) + 0.1, (self.tool_diam * 1.5) / self.target_res)
+        self.ctx.finish()
+        distance = 10
+        distance_adjusted = distance / self.target_res
         print(f"Distance of cut checking: {distance}mm")
-        candidates = self.checkCuts(worker, img_center,
+        candidates = self.checkCuts(worker, bore_coord,
                                     direction=0, 
                                     tool_rad=tool_radius,
                                     deg_inc=20,
                                     iterations=8,
-                                    distance=distance)
+                                    distance=distance_adjusted)
 
-        print(f"Candidate Cuts:\n {candidates}")
-        '''
-        for indice in range(cutDirections.shape[0] - 1):
-            start = cutDirections[indice]
-            stop = cutDirections[(indice + 1)]
-            worker.check_cut(start, stop, tool_radius)
-            worker.make_cut(start, stop, tool_radius)
-            test_imgs.append(Image.fromarray(worker.retrieve_image()))
+        print(f"Candidate Cuts:\n{'Model Obstacle  Stock  Total' : >32}\n {candidates[1]}")
 
-        for counter, image in enumerate(test_imgs):
-            image.save(f"./renders/testCut{counter}.png")
-        worker.color_fill.save(f"./renders/islands.png")
-        '''
+        image = Image.fromarray(worker.retrieve_image())
+        image.save(f"./renders/testBore.png")
+
+        for i, candidate in enumerate(candidates[1][:, :]):
+            print(f"Candidate {i}: {candidate}")
+            if candidate[0] < 1 and candidate[1] < 1:
+                ratio = candidate[2] / candidate[3]
+                if ratio < 0.2:
+                    dest = candidates[0][i]
+                    worker.make_cut(np.flip(bore_coord), np.flip(dest), tool_radius)
+                    break
+                else:
+                    print(f"Candidate {i} Ratio is too high")
+            else:
+                print(f"Candidate {i} contains model/obstacle material")
+
+        image = Image.fromarray(worker.retrieve_image())
+        image.save(f"./renders/testCut.png")
 
         return 0
