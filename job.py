@@ -341,7 +341,7 @@ class Job:
         print(f"Image Center: {img_center}")
         worker.make_cut(np.flip(bore_coord), np.flip(bore_coord) + 0.1, (self.tool_diam * 1.5) / self.target_res)
         self.ctx.finish()
-        distance = 10
+        distance = 0.2
         distance_adjusted = distance / self.target_res
         print(f"Distance of cut checking: {distance}mm")
         candidates = self.checkCuts(worker, bore_coord,
