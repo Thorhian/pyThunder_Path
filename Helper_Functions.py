@@ -94,4 +94,5 @@ def gen_test_gcode(array):
         gcode = f"G1 F200 X{coord[0]} Y{coord[1]} Z0\n"
         gcode_file.write(gcode)
 
+    gcode_file.write("M2\n")
     gcode_file.close()
