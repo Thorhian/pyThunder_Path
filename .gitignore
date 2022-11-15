@@ -5,3 +5,4 @@ __pycache__
 *.so
 *.o
 *.dll
+*.ngc

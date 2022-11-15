@@ -324,7 +324,9 @@ class Job:
         for i in range(iterations):
             cut_stats.append(cw.check_cut(np.flip(coords), np.flip(test_vectors[i]), tool_rad))
 
-        return [test_vectors, np.array(cut_stats)]
+        tested_directions = np.arange(direction, direction + (deg_inc * iterations), deg_inc)
+        tested_directions = np.mod(tested_directions, 360.0)
+        return [test_vectors, np.array(cut_stats), tested_directions]
 
     def generate_paths(self):
         if len(self.d_model.images) < 1:
@@ -344,32 +346,61 @@ class Job:
         distance = 0.2
         distance_adjusted = distance / self.target_res
         print(f"Distance of cut checking: {distance}mm")
-        candidates = self.checkCuts(worker, bore_coord,
-                                    direction=0, 
-                                    tool_rad=tool_radius,
-                                    deg_inc=20,
-                                    iterations=8,
-                                    distance=distance_adjusted)
 
-        print(f"Candidate Cuts:\n{'Model Obstacle  Stock  Total' : >32}\n {candidates[1]}")
+        current_direction = 0.0
+        materialRemovalRatio = 0.3
+        currentLoc = bore_coord + np.array([tool_radius * 1.5, 0])
+        locations = np.array([currentLoc * self.target_res])
+        emptyCounter = 0
+        for i in range(100000):
+            if emptyCounter >= 1000:
+                print("Too much empty cutting, proceed to next area.")
+                break
+            if currentLoc[0] < 0 or currentLoc[0] > self.img_res[0]:
+                print("Outside X Image Bounds")
+                break
+            if currentLoc[1] < 0 or currentLoc[1] > self.img_res[1]:
+                print("Outside Y Image Bounds")
+                break
 
-        image = Image.fromarray(worker.retrieve_image())
-        image.save(f"./renders/testBore.png")
+            if i % 1000 == 0:
+                print(f"Iteration: {i}")
+            if i % 10000 == 0:
+                image = Image.fromarray(worker.retrieve_image())
+                image.save(f"./renders/testCut{i}.png")
 
-        for i, candidate in enumerate(candidates[1][:, :]):
-            print(f"Candidate {i}: {candidate}")
-            if candidate[0] < 1 and candidate[1] < 1:
-                ratio = candidate[2] / candidate[3]
-                if ratio < 0.2:
-                    dest = candidates[0][i]
-                    worker.make_cut(np.flip(bore_coord), np.flip(dest), tool_radius)
-                    break
-                else:
-                    print(f"Candidate {i} Ratio is too high")
-            else:
-                print(f"Candidate {i} contains model/obstacle material")
+            candidates = self.checkCuts(worker, currentLoc,
+                                        direction=current_direction,
+                                        tool_rad=tool_radius,
+                                        deg_inc=2,
+                                        iterations=90,
+                                        distance=distance_adjusted)
+
+            #print(f"Candidate Cuts:\n{'Model Obstacle  Stock  Total' : >32}\n {candidates[1]}")
+            madeCut = False
+            for i, candidate in enumerate(candidates[1][:, :]):
+                #print(f"Candidate {i}: {candidate}")
+                if candidate[0] < 1 and candidate[1] < 1:
+                    ratio = candidate[2] / candidate[3]
+                    if ratio < materialRemovalRatio:
+                        currentLoc = candidates[0][i]
+                        worker.make_cut(np.flip(bore_coord), np.flip(currentLoc), tool_radius)
+                        current_direction = candidates[2][i]
+                        madeCut = True
+                        locations = np.append(locations, [currentLoc * self.target_res], axis=0)
+                        if ratio < 0.01:
+                            emptyCounter += 1
+                        break
+
+            if not madeCut:
+                print(f"Failed to find viable path")
+                break
+
 
         image = Image.fromarray(worker.retrieve_image())
         image.save(f"./renders/testCut.png")
+
+        print(locations)
+        hf.gen_test_gcode(locations)
 
         return 0
