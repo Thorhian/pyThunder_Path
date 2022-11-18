@@ -36,10 +36,18 @@ stock_mesh = mesh.Mesh.from_file(stlStockModel, speedups=False)
 depth_of_cut = float(sys.argv[3])
 tool_diameter = float(sys.argv[4])
 
+
 newJob = Job(model_mesh, stock_mesh, [],
              tool_diameter, target_res=target_res_per_pixel,
              debug=isDebugModeOn)
 
-newJob.render_layers(depth_of_cut)
-newJob.generate_paths()
-newJob.save_images()
+def process_models():
+    newJob.render_layers(depth_of_cut)
+    newJob.generate_paths()
+    #newJob.save_images()
+
+if isDebugModeOn:
+    import cProfile
+    cProfile.run('process_models()', 'stats')
+else:
+    process_models()
