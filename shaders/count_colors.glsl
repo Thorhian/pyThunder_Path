@@ -8,17 +8,22 @@ layout(std430, binding = 1) buffer counterBuffer
 } cIn;
 uniform vec4 circleCenters;
 uniform float circleRadius;
-uniform mat4x2 quadPoints;
-uniform ivec4   quadIndices;
+//uniform mat4x2 quadPoints;
+//uniform ivec4   quadIndices;
 
+const float EQUALITY_TOLERANCE = 1.0;
+
+//Now Checks if pixel is "on" or close to the perimeter of the circle.
 bool isInsideCircle(float radius, vec2 centerCoords, ivec2 pixelCoords) {
     float leftSide = pow(pixelCoords.x - centerCoords.x, 2) +
         pow(pixelCoords.y - centerCoords.y, 2);
+    
+    float difference = abs(leftSide - pow(radius, 2));
 
-    return (leftSide < pow(radius, 2));
+    return difference < EQUALITY_TOLERANCE;
 }
 
-bool isInsideQuad(ivec2 point) {
+/*bool isInsideQuad(ivec2 point) {
     int i = 0;
     while(i < 4) {
         int trueIndice = quadIndices[i];
@@ -35,7 +40,7 @@ bool isInsideQuad(ivec2 point) {
     }
 
     return true;
-}
+}*/
 
 void main() {
     ivec2 texelPosition = ivec2(gl_GlobalInvocationID.xy);
@@ -46,14 +51,10 @@ void main() {
     }
 
 
-    bool insideInitCirc = isInsideCircle(circleRadius, circleCenters.xy, texelPosition.yx);
     bool insideDestCirc = isInsideCircle(circleRadius, circleCenters.zw, texelPosition.yx);
-    bool insideQuad =     isInsideQuad(texelPosition.yx);
 
-    bool insideCutRegion = !insideInitCirc && (insideQuad || insideDestCirc);
-
-    if (!insideCutRegion) {
-        return; //No counting if we aren't in the cutting region.
+    if (!insideDestCirc) {
+        return;
     }
 
     vec4 texColor = imageLoad(imageSlice, texelPosition);
@@ -68,6 +69,8 @@ void main() {
     } else {
         atomicAdd(cIn.counters[3], 1); //Empty Pixel
     }
+
+    atomicAdd(cIn.counters[4], 1); //Total perimeter Pixels
 
     return;
 }

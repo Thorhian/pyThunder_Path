@@ -56,7 +56,7 @@ class ComputeWorker:
 
         self.generate_islands()
 
-        target_buffer = self.classify_islands(target_images[0])
+        #target_buffer = self.classify_islands(target_images[0])
 
         self.island_buffer.release()
 
@@ -64,14 +64,14 @@ class ComputeWorker:
         count_program = hf.load_shader("./shaders/count_colors.glsl")
         self.counter_compute: moderngl.ComputeShader = self.ctx.compute_shader(count_program)
         self.image_buffer = self.ctx.texture(self.image_res, 4)
-        self.image_buffer.write(target_buffer)
-        target_buffer.release()
+        self.image_buffer.write(target_images[0])
+        #target_buffer.release()
         self.depthBuffer = self.ctx.depth_texture(self.image_res)
         self.image_buffer.bind_to_image(1)
         self.image_buffer.use(5)
         self.counter_compute['imageSlice'] = 1
         dtype = np.dtype('u4')
-        uint_counters = np.array([0, 0, 0, 0,], dtype=dtype)
+        uint_counters = np.array([0, 0, 0, 0, 0,], dtype=dtype)
         self.uint_buffer = self.ctx.buffer(uint_counters)
         self.uint_buffer.bind_to_storage_buffer(1)
 
@@ -184,19 +184,19 @@ class ComputeWorker:
     def check_cut(self, center1, center2, radius):
         self.counter_compute['circleCenters'] = center1[0], center1[1], center2[0], center2[1]
         self.counter_compute['circleRadius'] = radius
-        quadUniform = self.counter_compute['quadPoints']
-        quadIUniform = self.counter_compute['quadIndices']
+        #quadUniform = self.counter_compute['quadPoints']
+        #quadIUniform = self.counter_compute['quadIndices']
         
-        quad: np.ndarray = self.find_rectangle_points(center1, center2, radius) #type: ignore
-        sorted_quad_indices = self.sort_rectangle_verts(quad) #type: ignore
-        quadUniform.write(quad.flatten()) #type: ignore
-        quadIUniform.write(sorted_quad_indices) #type: ignore
+        #quad: np.ndarray = self.find_rectangle_points(center1, center2, radius) #type: ignore
+        #sorted_quad_indices = self.sort_rectangle_verts(quad) #type: ignore
+        #quadUniform.write(quad.flatten()) #type: ignore
+        #quadIUniform.write(sorted_quad_indices) #type: ignore
     
         self.counter_compute.run(self.image_res[0] // 16 + 1, self.image_res[1] // 16 + 1)
 
         counters = np.frombuffer(self.uint_buffer.read(), dtype=np.dtype('u4'))
         dtype = np.dtype('u4')
-        uint_counters = np.array([0, 0, 0, 0,], dtype=dtype)
+        uint_counters = np.array([0, 0, 0, 0, 0,], dtype=dtype)
         self.uint_buffer.write(uint_counters)
 
         return counters
