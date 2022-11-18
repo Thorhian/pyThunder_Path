@@ -6,3 +6,5 @@ __pycache__
 *.o
 *.dll
 *.ngc
+stats
+stats.txt
