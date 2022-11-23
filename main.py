@@ -6,6 +6,7 @@ from stl import mesh
 
 from job import Job
 import Helper_Functions as hf
+import cProfile
 
 
 
@@ -40,6 +41,12 @@ newJob = Job(model_mesh, stock_mesh, [],
              tool_diameter, target_res=target_res_per_pixel,
              debug=isDebugModeOn)
 
-newJob.render_layers(depth_of_cut)
-newJob.generate_paths()
-newJob.save_images()
+def generate_paths():
+    newJob.render_layers(depth_of_cut)
+    newJob.generate_paths()
+    newJob.save_images()
+
+if isDebugModeOn:
+    cProfile.run('generate_paths()', filename='stats')
+else:
+    generate_paths()
