@@ -275,7 +275,7 @@ class Job:
             image = np.reshape(image, (self.img_res[1], self.img_res[0], 4))
             image = np.flip(image, 0)
             image = Image.fromarray(image)
-            image.save(f"./renders/layer{counter}.png")
+            image.save(f"./renders/layer{counter:04d}.png")
             counter += 1
 
     def checkCuts(self, cw : ComputeWorker,
@@ -344,19 +344,16 @@ class Job:
         print(f"Image Center: {img_center}")
         worker.make_cut(np.flip(bore_coord), np.flip(bore_coord) + 0.1, (self.tool_diam * 1.5) / self.target_res)
         self.ctx.finish()
-        distance = 1
+        distance = 2
         distance_adjusted = distance / self.target_res
         print(f"Distance of cut checking: {distance}mm")
 
         current_direction = 0.0
-        materialRemovalRatio = 0.3
+        materialRemovalRatio = 0.5
         currentLoc = bore_coord + np.array([7.0 / self.target_res, 0])
         locations = np.array([currentLoc * self.target_res])
         emptyCounter = 0
         for i in range(20000):
-            if emptyCounter >= 1000:
-                print("Too much empty cutting, proceed to next area.")
-                break
             if currentLoc[0] < 0 or currentLoc[0] > self.img_res[0]:
                 print("Outside X Image Bounds")
                 break
@@ -364,11 +361,12 @@ class Job:
                 print("Outside Y Image Bounds")
                 break
 
+            image = Image.fromarray(worker.retrieve_image())
+            image.save(f"./renders/testCut{i:08d}.png")
+
             if i % 1000 == 0:
                 print(f"Iteration: {i}")
                 #if i % 10000 == 0:
-                image = Image.fromarray(worker.retrieve_image())
-                image.save(f"./renders/testCut{i}.png")
 
             candidates = self.checkCuts(worker, currentLoc,
                                         direction=current_direction,
@@ -384,7 +382,7 @@ class Job:
                 #print(f"Candidate {i}: {candidate}")
                 if candidate[0] < 1 and candidate[1] < 1:
                     ratio = candidate[2] / candidate[3]
-                    if ratio < materialRemovalRatio:
+                    if ratio < materialRemovalRatio and ratio > 0.08:
                         new_loc = candidates[0][i]
                         worker.make_cut(np.flip(currentLoc), np.flip(new_loc), tool_radius)
                         current_direction = candidates[2][i]
@@ -399,9 +397,6 @@ class Job:
                 print(f"Failed to find viable path")
                 break
 
-
-        image = Image.fromarray(worker.retrieve_image())
-        image.save(f"./renders/testCut.png")
 
         hf.gen_test_gcode(locations)
 
