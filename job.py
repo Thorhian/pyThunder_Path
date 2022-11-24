@@ -329,6 +329,27 @@ class Job:
         tested_directions = np.mod(tested_directions, 360.0)
         return [test_vectors, np.array(cut_stats), tested_directions]
 
+    def check_image(self, worker):
+        dtype = np.dtype('u4')
+        uint_counters = np.array([0, 0, 0, 0, 0], dtype=dtype)
+        counter_buffer = self.ctx.buffer(uint_counters, dynamic=True)
+        worker.count_pixels(counter_buffer)
+        count = np.frombuffer(counter_buffer.read(), dtype=np.dtype('u4'))
+        counter_buffer.release()
+
+        return count
+
+    def check_image_masked(self, worker, mask):
+        dtype = np.dtype('u4')
+        uint_counters = np.array([0, 0, 0, 0, 0], dtype=dtype)
+        counter_buffer = self.ctx.buffer(uint_counters, dynamic=True)
+        worker.mask_tex.write(mask)
+        worker.count_pixels(counter_buffer, mask_buffer=True)
+        count = np.frombuffer(counter_buffer.read(), dtype=np.dtype('u4'))
+        counter_buffer.release()
+
+        return count
+
     def generate_paths(self):
         if len(self.d_model.images) < 1:
             print("No images loaded in discrete model.")
@@ -366,7 +387,6 @@ class Job:
 
             if i % 1000 == 0:
                 print(f"Iteration: {i}")
-                #if i % 10000 == 0:
 
             candidates = self.checkCuts(worker, currentLoc,
                                         direction=current_direction,
@@ -399,5 +419,9 @@ class Job:
 
 
         hf.gen_test_gcode(locations)
+        print(self.check_image(worker))
+        print(self.check_image_masked(worker, worker.island_list[0][2]))
+        link_img = Image.fromarray(worker.find_link_locations(worker.island_list[0][2]))
+        link_img.save(f"./renders/linkOne.png")
 
         return 0

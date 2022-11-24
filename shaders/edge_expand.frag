@@ -1,3 +1,4 @@
+/* # vim: ft=glsl */
 #version 330
 
 uniform sampler2D prev_render;

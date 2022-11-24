@@ -1,12 +1,12 @@
 /* # vim: ft=glsl */
-#version 330
+#version 330 core
 
 uniform sampler2D prev_render;
 uniform vec4 circleCenters;
 uniform float circleRadius;
 uniform mat4x2 quadPoints;
 uniform ivec4 quadIndices;
-out vec4 outcolor;
+out vec4 outColor;
 
 bool isInsideCircle(float radius, vec2 centerCoords, ivec2 pixelCoords) {
     float leftSide = pow(pixelCoords.x - centerCoords.x, 2) +
@@ -44,5 +44,5 @@ void main() {
       newColor.a = 0.0;
     }
 
-  outcolor = newColor;
+  outColor = newColor;
 }
