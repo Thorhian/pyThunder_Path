@@ -10,6 +10,7 @@ import os
 from PIL import Image
 
 import Helper_Functions as hf
+import NumbaAccelerated as na
 from Discretized_Model import DiscretizedModel
 from computeWorker import ComputeWorker
 
@@ -350,28 +351,15 @@ class Job:
 
         return count
 
-    def generate_paths(self):
-        if len(self.d_model.images) < 1:
-            print("No images loaded in discrete model.")
-            return -1
-
-        image_count = len(self.d_model.images)
-        img_center = np.array([self.img_res[0] / 2, self.img_res[1] / 2])
-        offset = np.array([0, 100])
-        bore_coord = img_center + offset
-        tool_radius = self.tool_diam / 2 / self.target_res
-        worker: ComputeWorker = ComputeWorker(self.target_res, self.d_model.images[image_count - 1], self.img_res, self.tool_diam)
-
-        print(f"Image Center: {img_center}")
-        worker.make_cut(np.flip(bore_coord), np.flip(bore_coord) + 0.1, (self.tool_diam * 1.5) / self.target_res)
-        self.ctx.finish()
+    def cutting_move(self, worker, startLoc):
         distance = 2
         distance_adjusted = distance / self.target_res
         print(f"Distance of cut checking: {distance}mm")
 
+        tool_radius = self.tool_diam / 2 / self.target_res
         current_direction = 0.0
         materialRemovalRatio = 0.5
-        currentLoc = bore_coord + np.array([7.0 / self.target_res, 0])
+        currentLoc = startLoc
         locations = np.array([currentLoc * self.target_res])
         emptyCounter = 0
         for i in range(20000):
@@ -417,11 +405,50 @@ class Job:
                 print(f"Failed to find viable path")
                 break
 
+        return locations
+
+
+    def generate_paths(self):
+        if len(self.d_model.images) < 1:
+            print("No images loaded in discrete model.")
+            return -1
+
+        image_count = len(self.d_model.images)
+        img_center = np.array([self.img_res[0] / 2, self.img_res[1] / 2])
+        offset = np.array([0, 100])
+        bore_coord = img_center + offset
+        tool_radius = self.tool_diam / 2 / self.target_res
+        worker: ComputeWorker = ComputeWorker(self.target_res, self.d_model.images[image_count - 1], self.img_res, self.tool_diam)
+
+        print(f"Image Center: {img_center}")
+        worker.make_cut(np.flip(bore_coord), np.flip(bore_coord) + 0.1, (self.tool_diam * 1.5) / self.target_res)
+        self.ctx.finish()
+        currentLoc = bore_coord + np.array([7.0 / self.target_res, 0])
+        locations = []
+        current_island = worker.island_list[0][2]
+        for i in range(4):
+            cut_moves = self.cutting_move(worker, currentLoc)
+            locations.append((0, cut_moves))
+            currentLoc = cut_moves[-1]
+            print(f"Current Location: {currentLoc} | Dtype: {currentLoc.dtype}")
+            link_locations = worker.find_link_locations(current_island)
+            print(f"Link Location Dtype: {link_locations.dtype}")
+            link_coords = na.search_link_points(link_locations, currentLoc)
+            print(f"Link Coordinates: {link_coords}")
+            bool_array = link_coords == np.array([-1, -1])
+            print(f"Bool Array: {bool_array}")
+            if not np.any(bool_array):
+                stats = worker.check_cut(np.flip(currentLoc), np.flip(link_coords), tool_radius)
+                currentLoc = np.flip(link_coords)
+                if stats[0] < 1 and stats[1] < 1:
+                    locations.append((1, currentLoc))
+                else:
+                    locations.append((2, currentLoc))
+
+                print(f"Cut Iteration: {i}")
+            else:
+                break
 
         hf.gen_test_gcode(locations)
-        print(self.check_image(worker))
-        print(self.check_image_masked(worker, worker.island_list[0][2]))
-        link_img = Image.fromarray(worker.find_link_locations(worker.island_list[0][2]))
-        link_img.save(f"./renders/linkOne.png")
 
         return 0
