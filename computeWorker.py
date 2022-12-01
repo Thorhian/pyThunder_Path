@@ -45,9 +45,7 @@ class ComputeWorker:
         self.initial_state = self.ctx.texture(self.image_res, 4)
         self.initial_state.write(target_images[0])
         self.stock_buffer.write(target_images[1])
-        print(f"Island Gen Program: {self.island_gen_prog._members}")
         self.island_gen_prog['fullRender'] = 6
-        #self.island_gen_prog['stockOnlyRender'] = 1
         self.initial_state.use(6)
         self.island_buffer = self.ctx.buffer(reserve=self.buffer_size)
         self.island_fbo = self.ctx.simple_framebuffer(self.image_res, components=4)
@@ -62,7 +60,9 @@ class ComputeWorker:
 
         self.island_buffer.release()
 
-        #Setup cutting pixel counter compute shader
+        ########################################################################
+        # Setup cutting pixel counter compute shader                           #
+        ########################################################################
         count_program = hf.load_shader("./shaders/count_colors.glsl")
         self.counter_compute: moderngl.ComputeShader = self.ctx.compute_shader(count_program)
         self.image_buffer = self.ctx.texture(self.image_res, 4)
@@ -76,8 +76,39 @@ class ComputeWorker:
         uint_counters = np.array([0, 0, 0, 0,], dtype=dtype)
         self.uint_buffer = self.ctx.buffer(uint_counters)
         self.uint_buffer.bind_to_storage_buffer(1)
+        ########################################################################
 
-        #Setup painter/cutter shader program and vao
+        ########################################################################
+        # Setup whole image color counting                                     #
+        ########################################################################
+        image_count_code = hf.load_shader("./shaders/count_image_total.glsl")
+        self.mask_tex = self.ctx.texture(self.image_res, 1)
+        self.mask_tex.use(7)
+        self.image_counter_compute: moderngl.ComputeShader = self.ctx.compute_shader(image_count_code)
+        self.image_counter_compute['imageSlice'] = 5
+        self.image_counter_compute['mask'] = 7
+        ########################################################################
+
+        ########################################################################
+        # Setup Link Location Program                                          #
+        ########################################################################
+        link_loc_finder = hf.load_shader("./shaders/find_link_locs.frag")
+        self.link_finder_prog : moderngl.Program = self.ctx.program(
+            vertex_shader=image_vertex_code,
+            fragment_shader=link_loc_finder
+        )
+        self.link_finder_prog['imageSlice'] = 5
+        self.link_finder_prog['mask'] = 7
+        self.link_finder_prog['circleRadius'] = (self.tool_diameter / 2) / self.pixel_res
+        self.link_finder_vao = self.ctx.vertex_array(self.link_finder_prog, 
+            [
+                (imageVerts_vbo, '2f', 'in_position')
+            ])
+        ########################################################################
+
+        ########################################################################
+        # Setup painter/cutter shader program and vao                          #
+        ########################################################################
         paint_frag_code = hf.load_shader("./shaders/painter.frag")
         self.painter_prog = self.ctx.program(vertex_shader=image_vertex_code,
                 fragment_shader=paint_frag_code)
@@ -89,6 +120,7 @@ class ComputeWorker:
             ])
 
         self.cut_buffer = self.ctx.buffer(reserve=self.buffer_size)
+        ########################################################################
 
     def generate_islands(self):
         '''
@@ -105,8 +137,6 @@ class ComputeWorker:
         island_data = np.frombuffer(self.island_buffer.read(), dtype='u1')
         island_data = np.reshape(island_data, (self.image_res[1], self.image_res[0], 4))
         self.color_fill = Image.fromarray(island_data, mode="RGBA")
-        size = self.color_fill.size
-        print(size)
 
         self.island_list = []
 
@@ -150,7 +180,6 @@ class ComputeWorker:
             vertex_shader=imageVertexCode,
             fragment_shader=profileDetectionCode
         )
-        print(profileSearchProgram._members)
         profileSearchProgram['slice'] = 0
         profileSearchProgram['islandMask'] = 1
         #profileSearchProgram['outColor'] = 2
@@ -203,7 +232,9 @@ class ComputeWorker:
         dtype = np.dtype('u4')
         uint_counters = np.array([0, 0, 0, 0,], dtype=dtype)
         self.uint_buffer.write(uint_counters)
-        print(counters)
+
+        return counters
+
 
     def make_cut(self, center1, center2, radius):
         self.painter_prog['circleCenters'] = center1[0], center1[1], center2[0], center2[1]
@@ -224,7 +255,24 @@ class ComputeWorker:
         self.island_fbo.read_into(self.cut_buffer, components=4, dtype='f1')
         self.image_buffer.write(self.cut_buffer)
 
+    def count_pixels(self, counter_buffer, mask_buffer = False):
+        if mask_buffer:
+            self.image_counter_compute['useMask'] = True;
+        else:
+            self.image_counter_compute['useMask'] = False;
 
+        counter_buffer.bind_to_storage_buffer(2)
+        self.image_counter_compute.run(self.image_res[0] // 16 + 1, self.image_res[1] // 16 + 1)
+
+    def find_link_locations(self, mask : moderngl.Buffer):
+        self.mask_tex.write(mask)
+        self.island_fbo.use()
+        self.island_fbo.clear()
+        self.link_finder_vao.render(moderngl.TRIANGLE_STRIP)
+
+        link_locations = np.frombuffer(self.island_fbo.read(components=4, dtype='f1'), dtype='u1')
+        link_locations = np.reshape(link_locations, (self.image_res[1], self.image_res[0], 4))
+        return np.flip(link_locations, 0)
 
     def retrieve_image(self):
         image = np.frombuffer(self.image_buffer.read(), dtype='u1')

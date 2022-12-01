@@ -42,24 +42,32 @@ void main() {
     ivec2 imageDims = imageSize(imageSlice);
 
     if(texelPosition.x > (imageDims.x - 1) || texelPosition.y > (imageDims.y - 1)) {
-        return;
+        return; //Don't go out of image bounds.
+    }
+
+
+    bool insideInitCirc = isInsideCircle(circleRadius, circleCenters.xy, texelPosition.yx);
+    bool insideDestCirc = isInsideCircle(circleRadius, circleCenters.zw, texelPosition.yx);
+    bool insideQuad =     isInsideQuad(texelPosition.yx);
+
+    bool insideCutRegion = !insideInitCirc && (insideQuad || insideDestCirc);
+
+    if (!insideCutRegion) {
+        return; //No counting if we aren't in the cutting region.
     }
 
     vec4 texColor = imageLoad(imageSlice, texelPosition);
-
-    if((texColor.a >= 0.98) &&
-      (isInsideCircle(circleRadius, circleCenters.xy, texelPosition.yx) || 
-      isInsideCircle(circleRadius, circleCenters.zw, texelPosition.yx) ||
-      isInsideQuad(texelPosition.yx))) {
+    if (texColor.a >= 0.98) {
         if (texColor.b >= 0.98) {
-          atomicAdd(cIn.counters[0], 1); //Model Pixel
-      } else if (texColor.r >= 0.98) {
-          atomicAdd(cIn.counters[1], 1); //Obstacle Pixel
-      } else {
-          atomicAdd(cIn.counters[2], 1); //Stock Pixel
-      }
+            atomicAdd(cIn.counters[0], 1); //Model Pixel
+        } else if (texColor.r >= 0.98 && texColor.g < 0.9) {
+            atomicAdd(cIn.counters[1], 1); //Obstacle Pixel
+        } else {
+            atomicAdd(cIn.counters[2], 1); //Stock Pixel
+        }
+    } else {
+        atomicAdd(cIn.counters[3], 1); //Empty Pixel
     }
 
-    atomicAdd(cIn.counters[3], 1);//Empty Pixel
     return;
 }

@@ -89,14 +89,12 @@ class DiscretizedModel:
         '''
         search_bounds = hf.double_circle_bbox(center1, radius, center2, radius)
         image_shape = self.images[image_indice].shape
-        print(image_shape)
         material_counter = dict()
         material_counter["stock"] = 0
         img_res = self.images[image_indice].shape
 
         x = np.clip(search_bounds[2], 0, img_res[1])
         y = np.clip(search_bounds[1], 0, img_res[0])
-        print(type(x), type(y), type(image_indice))
         while y < search_bounds[0] or y < image_shape[0]:
             x = search_bounds[2]
             while x < search_bounds[3] or x < image_shape[1]:

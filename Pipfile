@@ -12,6 +12,7 @@ pyglm = "*"
 pyflakes = "*"
 memory-profiler = "*"
 opencv-python = "*"
+numba = "*"
 
 [dev-packages]
 ipython = "*"

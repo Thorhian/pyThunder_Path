@@ -10,6 +10,7 @@ import os
 from PIL import Image
 
 import Helper_Functions as hf
+import NumbaAccelerated as na
 from Discretized_Model import DiscretizedModel
 from computeWorker import ComputeWorker
 
@@ -39,6 +40,14 @@ class Job:
 
         self.setup_opengl_objects()
         self.d_model = DiscretizedModel(target_res)
+
+        self.degree_inc = 2
+        self.pixelSize = 1 * self.target_res
+        #print(f"Image Bounds: {self.bounds}mm")
+        print(f"Image Resolution: {self.img_res}")
+        print(f"Target Resolution Modifier: {self.target_res}")
+        print(f"Pixel Height/Width: {self.pixelSize}mm")
+
 
     def __del__(self):
         self.firstPass.release()
@@ -76,7 +85,6 @@ class Job:
         res = (math.ceil((bounds[1] - bounds[0]) / self.target_res),
                math.ceil((bounds[3] - bounds[2]) / self.target_res))
         max_res = self.ctx.info["GL_MAX_TEXTURE_SIZE"]
-        print(f"Maximum Resolution: {max_res}")
         if res[0] > max_res or res[1] > max_res: #type: ignore
             raise Exception("Resolution is too high for GPU", res)
 
@@ -119,7 +127,7 @@ class Job:
         self.thirdPass = self.ctx.texture(self.img_res, 4, dtype='f1', internal_format=GL_RGBA2)
         self.thirdPassDepth = self.ctx.depth_texture(self.img_res)
 
-        print(self.bounds[4], ',', self.bounds[5])
+        #print(self.bounds[4], ',', self.bounds[5])
 
         self.projection_matrix = glm.ortho(
             self.bounds[0], self.bounds[1], self.bounds[2],
@@ -153,7 +161,6 @@ class Job:
         bStock = np.zeros(stock_size)
         aStock = np.ones(stock_size)
         stock_colors = np.dstack([rStock, gStock, bStock, aStock]).flatten().astype('f4')
-        print(model_colors, stock_colors.shape)
         image_vertices = np.array([
             -1, 1,
             -1, -1,
@@ -247,14 +254,12 @@ class Job:
                 break
 
             self.change_ortho_matrix(current_depth)
-            print(f"Render depth: {current_depth}")
             self.render()
             result_image = self.fbo3.read(components=4, dtype='f1')
             stock_only = self.stock_only_buffer.read()
             self.d_model.add_layer((result_image, stock_only), current_depth)
 
         if current_depth != model_depth:
-            print(f"Render depth: {model_depth}")
             self.change_ortho_matrix(model_depth)
             self.render()
             result_image = self.fbo3.read(components=4, dtype='f1')
@@ -271,41 +276,209 @@ class Job:
             image = np.reshape(image, (self.img_res[1], self.img_res[0], 4))
             image = np.flip(image, 0)
             image = Image.fromarray(image)
-            image.save(f"./renders/layer{counter}.png")
+            image.save(f"./renders/layer{counter:04d}.png")
             counter += 1
 
-    def generate_paths(self):
+    def checkCuts(self, cw : ComputeWorker,
+                 coords : np.ndarray,
+                 direction : float,
+                 tool_rad: float,
+                 deg_inc: float,
+                 iterations: int,
+                 distance: float,
+                 clockwiseScan = True):
+        '''
+        Runs the cut counter compute shader from the given compute worker
+        multiple times, incrememting the the angle of attack multiple
+        times in order to return multiple possible cut results. It can
+        scan in a clockwise direction (the default) or counter clockwise.
+        Must be provided with the current endmill center coordinates
+        and the current direction the end mill is going.
+
+        Degree increment determines how far each iterations is rotated
+        in the determined direction (clockwise or ccw).
+        '''
+
+        if direction >= 360.0 or direction < 0.0:
+            raise Exception(f"direction should be between 0 (inclusive) to 360 (exclusive), not {direction}")
+
+        scan_direction = 1
+        if clockwiseScan == True:
+            scan_direction = -1
+            
+        movement_vector = np.array([1, 0])
+        theta = np.radians((direction) % 360.0)
+        theta_inc = np.radians((deg_inc * scan_direction) % 360.0)
+        c, s = np.cos(theta), np.sin(theta)
+        c_inc, s_inc = np.cos(theta_inc), np.sin(theta_inc)
+
+        initial_rot = np.array(((c, -s), (s, c)))
+        scan_rot_v = np.array(((c_inc, -s_inc), (s_inc, c_inc)))
+
+        test_vectors = np.array([np.dot(initial_rot, movement_vector)])
+        for i in range(iterations - 1):
+            increment = np.array(np.dot(scan_rot_v, test_vectors[-1]))
+            test_vectors = np.append(test_vectors, [increment], axis=0)
+            
+        test_vectors = test_vectors * distance
+        test_vectors = test_vectors + coords
+        cut_stats = []
+        for i in range(iterations):
+            cut_stats.append(cw.check_cut(np.flip(coords), np.flip(test_vectors[i]), tool_rad))
+
+        tested_directions = np.arange(direction, direction + (deg_inc * iterations), (deg_inc * scan_direction))
+        tested_directions = np.mod(tested_directions, 360.0)
+        return [test_vectors, np.array(cut_stats), tested_directions]
+
+    def check_image(self, worker):
+        dtype = np.dtype('u4')
+        uint_counters = np.array([0, 0, 0, 0, 0], dtype=dtype)
+        counter_buffer = self.ctx.buffer(uint_counters, dynamic=True)
+        worker.count_pixels(counter_buffer)
+        count = np.frombuffer(counter_buffer.read(), dtype=np.dtype('u4'))
+        counter_buffer.release()
+
+        return count
+
+    def check_image_masked(self, worker, mask):
+        dtype = np.dtype('u4')
+        uint_counters = np.array([0, 0, 0, 0, 0], dtype=dtype)
+        counter_buffer = self.ctx.buffer(uint_counters, dynamic=True)
+        worker.mask_tex.write(mask)
+        worker.count_pixels(counter_buffer, mask_buffer=True)
+        count = np.frombuffer(counter_buffer.read(), dtype=np.dtype('u4'))
+        counter_buffer.release()
+
+        return count
+
+    def cutting_move(self, worker, startLoc, start_dir = 0.0, dist_inc = 2.0,
+                     material_removal_ratio = 0.2):
+        distance = dist_inc
+        distance_adjusted = distance / self.target_res
+
+        tool_radius = self.tool_diam / 2 / self.target_res
+        current_direction = start_dir
+        materialRemovalRatio = material_removal_ratio
+        currentLoc = startLoc
+        locations = np.array([currentLoc * self.target_res])
+        emptyCounter = 0
+        for i in range(20000):
+            if currentLoc[0] < 0 or currentLoc[0] > self.img_res[0]:
+                print("Outside X Image Bounds")
+                break
+            if currentLoc[1] < 0 or currentLoc[1] > self.img_res[1]:
+                print("Outside Y Image Bounds")
+                break
+
+            image = Image.fromarray(worker.retrieve_image())
+            image.save(f"./renders/testCut{i:08d}.png")
+
+            if i % 1000 == 0:
+                print(f"Iteration: {i}")
+
+            candidates = self.checkCuts(worker, currentLoc,
+                                        direction=current_direction,
+                                        tool_rad=tool_radius,
+                                        deg_inc=-0.5,
+                                        iterations=340,
+                                        distance=distance_adjusted,
+                                        clockwiseScan=False)
+
+            #print(f"Candidate Cuts:\n{'Model Obstacle  Stock  Total' : >32}\n {candidates[1]}")
+            madeCut = False
+            for i, candidate in enumerate(candidates[1][:, :]):
+                #print(f"Candidate {i}: {candidate}")
+                if candidate[0] < 1 and candidate[1] < 1:
+                    ratio = candidate[2] / candidate[3]
+                    if ratio < materialRemovalRatio and ratio > 0.08:
+                        new_loc = candidates[0][i]
+                        worker.make_cut(np.flip(currentLoc), np.flip(new_loc), tool_radius)
+                        current_direction = candidates[2][i]
+                        currentLoc = new_loc
+                        madeCut = True
+                        locations = np.append(locations, [currentLoc * self.target_res], axis=0)
+                        if ratio < 0.01:
+                            emptyCounter += 1
+                        break
+
+            if not madeCut:
+                print(f"Failed to find viable path")
+                break
+
+        return locations, current_direction
+
+
+    def generate_paths(self, dist_inc = 2.0, material_removal_ratio = 0.2):
         if len(self.d_model.images) < 1:
             print("No images loaded in discrete model.")
-            return -1;
-
-        shape = self.img_res
-        print(shape)
+            return -1
 
         image_count = len(self.d_model.images)
-        test_imgs = []
-        cutDirections: np.ndarray = np.array([
-                [shape[1] * 0.12, shape[0] * 0.03],
-                [shape[1] * 0.12, shape[0] * 0.98],
-                [shape[1] * 0.88, shape[0] * 0.98],
-                [shape[1] * 0.88, shape[0] * 0.03],
-                [shape[1] * 0.16, shape[0] * 0.03],
-                [shape[1] * 0.16, shape[0] * 0.96],
-                [shape[1] * 0.84, shape[0] * 0.96],
-                [shape[1] * 0.84, shape[0] * 0.04],
-                [shape[1] * 0.16, shape[0] * 0.04],
-            ])
+        img_center = np.array([self.img_res[0] / 2, self.img_res[1] / 2])
+        offset = np.array([0, 100])
+        bore_coord = img_center + offset
         tool_radius = self.tool_diam / 2 / self.target_res
         worker: ComputeWorker = ComputeWorker(self.target_res, self.d_model.images[image_count - 1], self.img_res, self.tool_diam)
-        for indice in range(cutDirections.shape[0] - 1):
-            start = cutDirections[indice]
-            stop = cutDirections[(indice + 1)]
-            worker.check_cut(start, stop, tool_radius)
-            worker.make_cut(start, stop, tool_radius)
-            test_imgs.append(Image.fromarray(worker.retrieve_image()))
 
-        for counter, image in enumerate(test_imgs):
-            image.save(f"./renders/testCut{counter}.png")
-        worker.color_fill.save(f"./renders/islands.png")
+        print(f"Image Center: {img_center}")
+        worker.make_cut(np.flip(bore_coord), np.flip(bore_coord) + 0.1, (self.tool_diam * 1.5) / self.target_res)
+        self.ctx.finish()
+        currentLoc = bore_coord + np.array([7.0 / self.target_res, 0])
+        current_direction = 0.0
+        locations = []
+        current_island = worker.island_list[0][2]
 
-        return 0;
+        #Generate Paths for an additive slice
+        for i in range(4):
+            #Initiate Cutting
+            cut_moves, _last_dir = self.cutting_move(worker=worker, startLoc=currentLoc, 
+                                                     start_dir=current_direction,
+                                                     material_removal_ratio=0.5)
+            locations.append((0, cut_moves))
+            currentLoc = cut_moves[-1]
+
+            #Determine Link Point to Continue Cutting
+            link_locations = worker.find_link_locations(current_island)
+            link_coords = na.search_link_points(link_locations, currentLoc)
+            bool_array = link_coords == np.array([-1, -1])
+            if not np.any(bool_array):
+
+                #Determine direction to start in
+                candidates = self.checkCuts(worker, np.flip(link_coords),
+                                            direction=0.0,
+                                            tool_rad=tool_radius,
+                                            deg_inc=1.0,
+                                            iterations=360,
+                                            distance=dist_inc / self.target_res,
+                                            clockwiseScan=False)
+
+                found_direction = False
+                for i, candidate in enumerate(candidates[1][:, :]):
+                    if candidate[0] < 1 and candidate[1] < 1:
+                        ratio = candidate[2] / candidate[3]
+                        if ratio < material_removal_ratio and ratio > 0.08:
+                            current_direction = candidates[2][i]
+                            found_direction = True
+                            break
+
+                if not found_direction:
+                    #TODO: Remove this potential link location from image map,
+                    #      search for next closest potential link location.
+                    print(f"No viable direction could be found for post-link movement")
+                    break
+
+                #Check if chosen link movement needs to retract
+                currentLoc = link_coords
+                stats = worker.check_cut(np.flip(currentLoc), np.flip(link_coords), tool_radius)
+                if stats[0] < 1 and stats[1] < 1:
+                    locations.append((1, currentLoc * self.target_res))
+                else:
+                    locations.append((2, currentLoc * self.target_res))
+
+            else:
+                print(f"No link locations could be found, ending layer")
+                break
+
+        hf.gen_test_gcode(locations)
+
+        return 0
