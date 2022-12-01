@@ -25,12 +25,12 @@ def calculate_aspect_ratio(res_tuple):
     return ((res_tuple[0] / gcd), (res_tuple[1] / gcd))
 
 def get_model_min_max(model):
-    x_min = np.min(model.vectors[:,:,0])
-    x_max = np.max(model.vectors[:,:,0])
-    y_min = np.min(model.vectors[:,:,1])
-    y_max = np.max(model.vectors[:,:,1])
-    z_min = np.min(model.vectors[:,:,2])
-    z_max = np.max(model.vectors[:,:,2])
+    x_min = np.min(model[:,:,0])
+    x_max = np.max(model[:,:,0])
+    y_min = np.min(model[:,:,1])
+    y_max = np.max(model[:,:,1])
+    z_min = np.min(model[:,:,2])
+    z_max = np.max(model[:,:,2])
 
     return (x_min, x_max, y_min, y_max, z_min, z_max)
 

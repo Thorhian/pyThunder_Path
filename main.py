@@ -28,11 +28,11 @@ if len(sys.argv) <= 3:
 
 #Load STL File Target Model
 stlTargetModel = os.path.abspath(sys.argv[1])
-model_mesh = mesh.Mesh.from_file(stlTargetModel, speedups=False)
+model_mesh = mesh.Mesh.from_file(stlTargetModel, speedups=False).vectors
 
 #Load STL File Stock Model
 stlStockModel = os.path.abspath(sys.argv[2])
-stock_mesh = mesh.Mesh.from_file(stlStockModel, speedups=False)
+stock_mesh = mesh.Mesh.from_file(stlStockModel, speedups=False).vectors
 
 depth_of_cut = float(sys.argv[3])
 tool_diameter = float(sys.argv[4])
