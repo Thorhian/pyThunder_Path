@@ -15,19 +15,21 @@ isDebugModeOn = False
 
 # Units should be in Metric.
 target_res_per_pixel = 0.2 #Width/Height of each pixel
-
+ip_address = socket.gethostname()
 for arg in sys.argv:
     if arg == '--help' or arg == '-h':
         hf.print_help()
         sys.exit()
     if arg == '--debug' or arg == '-d':
         isDebugModeOn = True
+    if arg == '--address' or arg =='-a':
+        ip_address = sys.argv[-1]
 
-if len(sys.argv) <= 3:
+if len(sys.argv) <= 4:
     print("Please specify an STL file, depth of cut, and tool diameter (in mm).\n")
     sys.exit()
 
-tcp_socket = socket.create_connection((socket.gethostname(), 43200))
+tcp_socket = socket.create_connection((ip_address, 43200))
 
 #Load STL File Target Model
 stlTargetModel = os.path.abspath(sys.argv[1])
