@@ -36,6 +36,8 @@ etc), we would not be living in the world we have today.
     - GLSL Fragment shader for performing "cuts" on rendered images has been implemented.
     - Added a small path example to cut around the perimeter of the image.
     - Stock Island Detection and Labeling Working Thanks to OpenCV
+    - Some CE path generation, but relies on hardcoded values for entry at this time.
+    - Initial Server implemented, along with a test client.
 
 ## How To Run
 
@@ -70,19 +72,20 @@ This will make your terminal enter that python virtual environment, you
 can run from inside it. If you don't want to do that, you will need
 to prepend `pipenv run` to all commands used to activate pyThunder_Path.
 
-pyThunder_Path will be receiving a TCP/JSON interface to receive 3D model
-and other needed data to generate tool paths and will send the generated
-tool paths back to the client that requested them. For now though, you
-can run pyThunder_Path in your terminal/command line prompt.
+pyThunder_Path has a TCP/JSON server interface along with a driver script to
+run an individual target model via the command line. There is also a
+test/example client, `test_client.py`, that can talk to the server. To run the
+server, run `server.py`. The arguments are the same as the `standalone.py`
+script explained below.
 
 ```
-python3 ./main.py /path/to/target/model.stl /path/to/stock/model.stl 12 9.525
+python3 ./standalone.py /path/to/target/model.stl /path/to/stock/model.stl 12 9.525
 ```
 
 If you are using `pipenv run`, please replace `python3` (or just `python`)
 with `pipenv run`.
 
-`./main.py` is the driver script that initiates pyThunder_CAM from the
+`./standalone.py` is the driver script that initiates pyThunder_CAM from the
 terminal/command prompt currently. The next two command line arguments
 are the file locations of the STL files that represent the model you
 want to be created by your CNC Machine and the STL model that represents
