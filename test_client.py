@@ -29,7 +29,7 @@ if len(sys.argv) <= 4:
     print("Please specify an STL file, depth of cut, and tool diameter (in mm).\n")
     sys.exit()
 
-tcp_socket = socket.create_connection((ip_address, 43200))
+tcp_socket = socket.create_connection((ip_address, 4320))
 
 #Load STL File Target Model
 stlTargetModel = os.path.abspath(sys.argv[1])

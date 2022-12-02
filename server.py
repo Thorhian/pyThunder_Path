@@ -17,7 +17,7 @@ def handle_connection(connection, client):
 
     try:
         while True:
-            chunk = connection.recv(2048)
+            chunk = connection.recv(32768)
             if(chunk == b''):
                 break
             if new_msg:
@@ -65,7 +65,7 @@ def handle_connection(connection, client):
 
 tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-server_address = (socket.gethostname(), 43200)
+server_address = ('', 4320)
 tcp_socket.bind(server_address)
 
 
