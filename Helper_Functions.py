@@ -25,12 +25,12 @@ def calculate_aspect_ratio(res_tuple):
     return ((res_tuple[0] / gcd), (res_tuple[1] / gcd))
 
 def get_model_min_max(model):
-    x_min = np.min(model.vectors[:,:,0])
-    x_max = np.max(model.vectors[:,:,0])
-    y_min = np.min(model.vectors[:,:,1])
-    y_max = np.max(model.vectors[:,:,1])
-    z_min = np.min(model.vectors[:,:,2])
-    z_max = np.max(model.vectors[:,:,2])
+    x_min = np.min(model[:,:,0])
+    x_max = np.max(model[:,:,0])
+    y_min = np.min(model[:,:,1])
+    y_max = np.max(model[:,:,1])
+    z_min = np.min(model[:,:,2])
+    z_max = np.max(model[:,:,2])
 
     return (x_min, x_max, y_min, y_max, z_min, z_max)
 
@@ -88,7 +88,7 @@ def check_point_in_circle(circ_center, radius, pixel_coord):
 def gen_test_gcode(array):
     gcode_file = open("testGcode.ngc", "w")
 
-    gcode_file.write("G0 X0 Y0 Z10\n")
+    gcode_file.write("G21\nG0 X0 Y0 Z10\n")
     gcode_file.write(f"G0 X{array[0][1][0][0]} Y{array[0][1][0][1]} Z10\n")
     for link in array:
         gcode = ""
