@@ -88,7 +88,7 @@ def check_point_in_circle(circ_center, radius, pixel_coord):
 def gen_test_gcode(array):
     gcode_file = open("testGcode.ngc", "w")
 
-    gcode_file.write("G0 X0 Y0 Z10\n")
+    gcode_file.write("G21\nG0 X0 Y0 Z10\n")
     gcode_file.write(f"G0 X{array[0][1][0][0]} Y{array[0][1][0][1]} Z10\n")
     for link in array:
         gcode = ""

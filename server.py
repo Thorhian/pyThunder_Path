@@ -1,21 +1,16 @@
+import multiprocessing
+import threading
 import socket
 import json
 import numpy as np
 from job import Job
 
+import Job_Process
+
 HEADERSIZE = 12
 
-tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-server_address = (socket.gethostname(), 43200)
-tcp_socket.bind(server_address)
-
-tcp_socket.listen(2)
-
-while True:
-    print("Waiting for connection")
-    connection, client = tcp_socket.accept()
-    print("Connected to client IP: {}".format(client))
+def handle_connection(connection, client):
     data = b''
     new_msg = True
     msglen = 0
@@ -40,42 +35,22 @@ while True:
                 if data["type"] == "message":
                     print(data["contents"])
                 elif data["type"] == "job":
-                    job_name = data["job_name"]
-                    target_verts = np.array(data["target_verts"])
-                    target_normals = np.array(data["target_normals"])
-                    stock_verts = np.array(data["stock_verts"])
-                    stock_normals = np.array(data["stock_normals"])
-                    tool_diameter = data["tool_diameter"]
-                    depth_of_cut = data["depth_of_cut"]
-                    origin_point = np.array(data["origin_point"])
-                    target_res = 0.2
 
-                    new_job = Job(target_verts, stock_verts, [],
-                                  tool_diameter, target_res=target_res,
-                                  debug=True)
+                    to_job_process = multiprocessing.Queue()
+                    from_job_process = multiprocessing.Queue()
 
-                    new_job.render_layers(depth_of_cut)
-                    path_data = new_job.generate_paths()
-                    new_job.save_images()
+                    job_process = multiprocessing.Process(target=Job_Process.new_job_process,
+                                                          args=(to_job_process, from_job_process),
+                                                          daemon=True)
+
+                    job_process.start()
+
+                    to_job_process.put(data)
+                    response_data = from_job_process.get(block=True)
+                    job_process.join()
+                     
 
                     print(f"Sending paths back to {client}")
-
-                    response_data = []
-                    
-                    for path_chain in path_data:
-                        match path_chain[0]:
-                            case 0:
-                                converted_chain = [0, path_chain[1].tolist()]
-                                response_data.append(converted_chain)
-                            case 1:
-                                converted_chain = [1, path_chain[1].tolist()]
-                                response_data.append(converted_chain)
-                            case 2:
-                                converted_chain = [2, path_chain[1].tolist()]
-                                response_data.append(converted_chain)
-                            case _:
-                                pass
-
                     response_data = json.dumps(response_data).encode('utf-8')
                     header_data = bytes(f"{len(response_data):<{HEADERSIZE}}", "utf-8")
                     connection.sendall(header_data + response_data)
@@ -86,4 +61,19 @@ while True:
 
     finally:
         connection.close()
+### End Connection Handle Function
+
+tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+server_address = (socket.gethostname(), 43200)
+tcp_socket.bind(server_address)
+
+
+tcp_socket.listen(2)
+
+while True:
+    print("Waiting for connection")
+    connection, client = tcp_socket.accept()
+    print("Connected to client IP: {}".format(client))
+    threading.Thread(target=handle_connection, args=(connection, client), daemon=True).start()
 
