@@ -3,7 +3,6 @@
 import sys
 import math
 import numpy as np
-from stl import mesh
 import moderngl
 import glm
 import os
@@ -149,8 +148,8 @@ class Job:
 
 
         #Get vertice and color data prepared
-        model_size = self.target_model.vectors.size
-        stock_size = self.stock_model.vectors.size
+        model_size = self.target_model.size
+        stock_size = self.stock_model.size
         r = np.zeros(model_size)
         g = np.zeros(model_size)
         b = np.ones(model_size)
@@ -167,8 +166,8 @@ class Job:
             1, 1,
             1, -1,
         ], dtype='f4')
-        model_verts = self.target_model.vectors.flatten().astype('f4')
-        stock_verts = self.stock_model.vectors.flatten().astype('f4')
+        model_verts = self.target_model.flatten().astype('f4')
+        stock_verts = self.stock_model.flatten().astype('f4')
         #rendered_verts = np.concatenate((model_verts, stock_verts)).astype('f4')
         #all_colors = np.concatenate((model_colors.flatten(), stock_colors.flatten())).astype('f4')
 
@@ -379,7 +378,7 @@ class Job:
             candidates = self.checkCuts(worker, currentLoc,
                                         direction=current_direction,
                                         tool_rad=tool_radius,
-                                        deg_inc=-0.5,
+                                        deg_inc=0.5,
                                         iterations=340,
                                         distance=distance_adjusted,
                                         clockwiseScan=False)
@@ -479,6 +478,4 @@ class Job:
                 print(f"No link locations could be found, ending layer")
                 break
 
-        hf.gen_test_gcode(locations)
-
-        return 0
+        return locations
