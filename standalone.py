@@ -43,7 +43,8 @@ newJob = Job(model_mesh, stock_mesh, [],
 
 def generate_paths():
     newJob.render_layers(depth_of_cut)
-    newJob.generate_paths()
+    paths = newJob.generate_paths()
+    hf.gen_test_gcode(paths)
     newJob.save_images()
 
 if isDebugModeOn:

@@ -22,7 +22,7 @@ while True:
 
     try:
         while True:
-            chunk = connection.recv(4096)
+            chunk = connection.recv(2048)
             if(chunk == b''):
                 break
             if new_msg:
@@ -55,8 +55,30 @@ while True:
                                   debug=True)
 
                     new_job.render_layers(depth_of_cut)
-                    new_job.generate_paths()
+                    path_data = new_job.generate_paths()
                     new_job.save_images()
+
+                    print(f"Sending paths back to {client}")
+
+                    response_data = []
+                    
+                    for path_chain in path_data:
+                        match path_chain[0]:
+                            case 0:
+                                converted_chain = [0, path_chain[1].tolist()]
+                                response_data.append(converted_chain)
+                            case 1:
+                                converted_chain = [1, path_chain[1].tolist()]
+                                response_data.append(converted_chain)
+                            case 2:
+                                converted_chain = [2, path_chain[1].tolist()]
+                                response_data.append(converted_chain)
+                            case _:
+                                pass
+
+                    response_data = json.dumps(response_data).encode('utf-8')
+                    header_data = bytes(f"{len(response_data):<{HEADERSIZE}}", "utf-8")
+                    connection.sendall(header_data + response_data)
                     
 
                 new_msg = True

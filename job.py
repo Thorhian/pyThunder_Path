@@ -478,6 +478,4 @@ class Job:
                 print(f"No link locations could be found, ending layer")
                 break
 
-        hf.gen_test_gcode(locations)
-
-        return 0
+        return locations

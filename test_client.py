@@ -5,6 +5,7 @@ import sys
 import os
 import json
 from stl import mesh
+import numpy as np
 
 import Helper_Functions as hf
 
@@ -68,6 +69,44 @@ try:
             msg_json_size = len(msg_json)
             msg_json = bytes(f'{msg_json_size:<{HEADERSIZE}}', "utf-8") + msg_json
             tcp_socket.sendall(msg_json)
+
+            print(f"Waiting for response...")
+            path_data : bytes = b''
+            new_msg = True
+            msglen = 0
+            while True:
+                chunk = tcp_socket.recv(2048)
+
+                if(chunk == b''):
+                    break
+
+                if new_msg:
+                    msglen = int(chunk[:HEADERSIZE])
+                    print(f"Data Arriving, Length: {msglen}")
+                    new_msg = False
+
+                path_data += chunk
+
+                if len(path_data) - HEADERSIZE == msglen:
+                    path_data = json.loads(path_data[HEADERSIZE:].decode('utf-8'))
+                    finished_paths = []
+                    for path_chain in path_data:
+                        match path_chain[0]:
+                            case 0:
+                                converted_chain = (0, np.array(path_chain[1]))
+                                finished_paths.append(converted_chain)
+                            case 1:
+                                converted_chain = (1, np.array(path_chain[1]))
+                                finished_paths.append(converted_chain)
+                            case 2:
+                                converted_chain = (2, np.array(path_chain[1]))
+                                finished_paths.append(converted_chain)
+                            case _:
+                                pass
+
+                    print(finished_paths)
+                    hf.gen_test_gcode(finished_paths)
+                    break
 
         else:
             msg = {
