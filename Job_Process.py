@@ -21,7 +21,7 @@ def new_job_process(in_queue : multiprocessing.Queue,
 
     new_job.render_layers(depth_of_cut)
     path_data = new_job.generate_paths()
-    new_job.save_images()
+    #new_job.save_images()
     response_data = []
 
     for path_chain in path_data:

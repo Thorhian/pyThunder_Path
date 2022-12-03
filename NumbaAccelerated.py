@@ -31,3 +31,6 @@ def search_link_points(link_points : np.ndarray, current_loc):
 
     return closest_point
 
+@jit(nopython=True) #See: https://www.delftstack.com/howto/python/python-clamp/
+def clamp(n, smallest, largest):
+    return max(smallest, min(n, largest))
