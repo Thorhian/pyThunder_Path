@@ -474,7 +474,7 @@ class Job:
                                                      dist_inc=dist_inc,
                                                      material_removal_ratio=0.2)
             locations.append((0, cut_moves))
-            currentLoc = cut_moves[-1]
+            currentLoc = cut_moves[-1] / self.target_res
 
             image = Image.fromarray(worker.retrieve_image())
             image.save(f"./renders/testCut{i:08d}.png")
