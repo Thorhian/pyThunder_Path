@@ -7,6 +7,8 @@ from PIL import Image
 import cv2
 import sys
 
+import NumbaAccelerated as na
+
 class ComputeWorker:
     '''
     A class to represent a worker process/thread. Should be able to take
@@ -74,7 +76,7 @@ class ComputeWorker:
         self.counter_compute['imageSlice'] = 1
         dtype = np.dtype('u4')
         uint_counters = np.array([0, 0, 0, 0,], dtype=dtype)
-        self.uint_buffer = self.ctx.buffer(uint_counters)
+        self.uint_buffer = self.ctx.buffer(uint_counters, dynamic=True)
         self.uint_buffer.bind_to_storage_buffer(1)
         ########################################################################
 
@@ -221,8 +223,8 @@ class ComputeWorker:
         quadUniform = self.counter_compute['quadPoints']
         quadIUniform = self.counter_compute['quadIndices']
         
-        quad: np.ndarray = self.find_rectangle_points(center1, center2, radius) #type: ignore
-        sorted_quad_indices = self.sort_rectangle_verts(quad) #type: ignore
+        quad: np.ndarray = na.find_rectangle_points(center1, center2, radius) #type: ignore
+        sorted_quad_indices = na.sort_rectangle_verts(quad) #type: ignore
         quadUniform.write(quad.flatten()) #type: ignore
         quadIUniform.write(sorted_quad_indices) #type: ignore
     
@@ -243,8 +245,8 @@ class ComputeWorker:
         quadUniform = self.painter_prog['quadPoints']
         quadIUniform = self.painter_prog['quadIndices']
         
-        quad: np.ndarray = self.find_rectangle_points(center1, center2, radius) #type: ignore
-        sorted_quad_indices = self.sort_rectangle_verts(quad) #type: ignore
+        quad: np.ndarray = na.find_rectangle_points(center1, center2, radius) #type: ignore
+        sorted_quad_indices = na.sort_rectangle_verts(quad) #type: ignore
         quadUniform.write(quad.flatten()) #type: ignore
         quadIUniform.write(sorted_quad_indices) #type: ignore
 
@@ -287,6 +289,11 @@ class ComputeWorker:
         return image
 
     def find_rectangle_points(self, center1, center2, radius):
+        '''
+        This function is now depracated. Use the Numba Accelerated
+        version instead.
+        '''
+        print("find_rectangle_points in class ComputeWorker is Depracated")
         translated_cent1 = np.array(center1) - np.array(center2) #type: ignore
         translated_cent2 = np.array(center2) - np.array(center1) #type: ignore
 
@@ -302,6 +309,11 @@ class ComputeWorker:
                 dtype=np.dtype('f4'))
 
     def sort_rectangle_verts(self, vertices):
+        '''
+        This function is now depracated. Use the Numba Accelerated
+        version instead.
+        '''
+        print("sort_rectangle_verts in class ComputeWorker is Depracated")
         avg_center = np.add.reduce(vertices) / 4
 
         offset_verts = vertices - avg_center
