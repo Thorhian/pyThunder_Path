@@ -9,6 +9,8 @@ import sys
 
 import NumbaAccelerated as na
 
+MAX_ITERATION_SIZE = 1024
+
 class ComputeWorker:
     '''
     A class to represent a worker process/thread. Should be able to take
@@ -70,14 +72,25 @@ class ComputeWorker:
         self.image_buffer = self.ctx.texture(self.image_res, 4)
         self.image_buffer.write(target_buffer)
         target_buffer.release()
+
+        self.center_buff_size = (16 * MAX_ITERATION_SIZE)
+        self.quad_verts_buff_size = (32 * MAX_ITERATION_SIZE)
+        self.quad_indices_buff_size = (16 * MAX_ITERATION_SIZE)
+        self.counter_results_size = (16 * MAX_ITERATION_SIZE)
+        self.cutter_center_buff = self.ctx.buffer(reserve=self.center_buff_size, dynamic=True)
+        self.quad_verts_buff = self.ctx.buffer(reserve=self.quad_verts_buff_size, dynamic=True)
+        self.quad_indices_buff = self.ctx.buffer(reserve=self.quad_indices_buff_size, dynamic=True)
+        self.counter_results = self.ctx.buffer(reserve=self.counter_results_size, dynamic=True)
+
         self.depthBuffer = self.ctx.depth_texture(self.image_res)
         self.image_buffer.bind_to_image(1)
         self.image_buffer.use(5)
         self.counter_compute['imageSlice'] = 1
-        dtype = np.dtype('u4')
-        uint_counters = np.array([0, 0, 0, 0,], dtype=dtype)
-        self.uint_buffer = self.ctx.buffer(uint_counters, dynamic=True)
-        self.uint_buffer.bind_to_storage_buffer(1)
+
+        self.counter_results.bind_to_storage_buffer(1)
+        self.cutter_center_buff.bind_to_storage_buffer(2)
+        self.quad_verts_buff.bind_to_storage_buffer(3)
+        self.quad_indices_buff.bind_to_storage_buffer(4)
         ########################################################################
 
         ########################################################################
@@ -217,26 +230,55 @@ class ComputeWorker:
 
         return sliceInputBuffer
 
-    def check_cut(self, center1, center2, radius):
-        self.counter_compute['circleCenters'] = center1[0], center1[1], center2[0], center2[1]
-        self.counter_compute['circleRadius'] = radius
-        quadUniform = self.counter_compute['quadPoints']
-        quadIUniform = self.counter_compute['quadIndices']
-        
-        quad: np.ndarray = na.find_rectangle_points(center1, center2, radius) #type: ignore
-        sorted_quad_indices = na.sort_rectangle_verts(quad) #type: ignore
-        quadUniform.write(quad.flatten()) #type: ignore
-        quadIUniform.write(sorted_quad_indices) #type: ignore
-    
-        self.counter_compute.run(self.image_res[0] // 16 + 1, self.image_res[1] // 16 + 1)
+    def check_cuts(self, current_loc: np.ndarray,
+                   direction: float,
+                   tool_radius: float,
+                   deg_inc: float,
+                   iterations: int,
+                   distance: float):
+        '''
+        Checks many different cuts based on an intial direction angle
+        and how many cut iterations need to be tested, changing
+        the direction of each iteration by the deg_inc parameter.
+        Returns a list of the potential cut locations, what pixels
+        are encountered in each of those cuts, and the direction
+        that cut is going (in order).
+        '''
+        if iterations > MAX_ITERATION_SIZE:
+            raise Exception(f"Iterations Count: {iterations}, cannot go above {MAX_ITERATION_SIZE}")
 
-        counters = np.frombuffer(self.uint_buffer.read(), dtype=np.dtype('u4'))
-        dtype = np.dtype('u4')
-        uint_counters = np.array([0, 0, 0, 0,], dtype=dtype)
-        self.uint_buffer.write(uint_counters)
+        if direction >= 360.0 or direction < 0.0:
+            raise Exception(f"direction should be between 0 (inclusive) to 360 (exclusive), not {direction}")
 
-        return counters
+        cut_vectors = na.prepare_test_cut_vectors(
+            current_loc,
+            direction,
+            deg_inc,
+            iterations,
+            distance
+        )
+        cut_vectors = np.flip(cut_vectors)
+        centers = na.generate_cut_count_centers(cut_vectors, np.flip(current_loc))
+        quad_verts = na.generate_cut_count_rect_points(centers, tool_radius)
+        quad_indices = na.generate_cut_count_rect_indices(quad_verts)
+        tested_directions = np.arange(direction, direction + (deg_inc * iterations), deg_inc)
+        tested_directions = np.mod(tested_directions, 360.0)
 
+        self.counter_results.write(np.zeros((iterations, 4), dtype='u4'))
+        self.cutter_center_buff.write(centers)
+        self.quad_verts_buff.write(quad_verts)
+        self.quad_indices_buff.write(quad_indices)
+        self.counter_compute['tool_radius'] = tool_radius
+        self.counter_compute['iterations'] = iterations
+        self.counter_compute.run(group_x=self.image_res[0] // 8 + 1,
+                                 group_y=self.image_res[1] // 8 + 1,
+                                 group_z=iterations // 4 + 1)
+
+        counter_results = np.frombuffer(self.counter_results.read(size=(16 * iterations)),
+                                        dtype='u4')
+        counter_results = counter_results.view().reshape((iterations, 4))
+
+        return [cut_vectors, counter_results, tested_directions]
 
     def make_cut(self, center1, center2, radius):
         self.painter_prog['circleCenters'] = center1[0], center1[1], center2[0], center2[1]

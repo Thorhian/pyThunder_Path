@@ -1,3 +1,4 @@
+from numba.np.ufunc import parallel
 import numpy as np
 from numba import jit
 
@@ -75,3 +76,75 @@ def sort_rectangle_verts(vertices):
         i += 1
 
     return np.argsort(polar_rotations).astype('i4')
+
+@jit(nopython=True)
+def prepare_test_cut_vectors(current_loc: np.ndarray,
+                             direction: float,
+                             deg_inc: float,
+                             iterations: int,
+                             distance: float):
+
+        movement_vector = np.array([1, 0])
+        theta = np.radians((direction) % 360.0)
+
+
+        theta_inc = np.radians(deg_inc  % 360.0)
+        c = np.cos(theta)
+        s = np.sin(theta)
+        c_inc = np.cos(theta_inc)
+        s_inc = np.sin(theta_inc)
+
+        initial_rot = np.array(((c, -s), (s, c)))
+        scan_rot_v = np.array(((c_inc, -s_inc), (s_inc, c_inc)))
+
+        test_vectors = np.zeros((iterations, 2), dtype='f8')
+
+        #test_vectors = [np.flip(np.dot(initial_rot, movement_vector.astype('f8')))]
+        increment = np.dot(initial_rot, movement_vector.astype('f8'))
+        test_vectors[0] = increment
+        for i in range(iterations - 1):
+            increment = np.dot(scan_rot_v, test_vectors[i])
+            test_vectors[i + 1] = increment
+
+        test_vectors = test_vectors * distance
+        test_vectors = test_vectors + current_loc
+        return test_vectors
+
+@jit(nopython=True, parallel=True)
+def generate_cut_count_centers(test_vectors: np.ndarray,
+                                start_loc: np.ndarray):
+    iterations = test_vectors.shape[0]
+    centers = np.zeros((iterations, 4), dtype='f4')
+
+    for i in range(iterations):
+        centers[i] = np.array([
+                                  start_loc[0], start_loc[1],
+                                  test_vectors[i][0], test_vectors[i][1]
+                              ])
+
+    return centers
+
+@jit(nopython=True, parallel=True)
+def generate_cut_count_rect_points(centers: np.ndarray,
+                                   tool_radius: float):
+    iterations = centers.shape[0]
+    quads = np.zeros((iterations, 4, 2), dtype='f4')
+    
+    for i in range(iterations):
+        center1 = centers[i][0:2]
+        center2 = centers[i][2:4]
+
+        points = find_rectangle_points(center1, center2, tool_radius)
+        quads[i] = points
+
+    return quads
+
+@jit(nopython=True, parallel=True)
+def generate_cut_count_rect_indices(rect_verts: np.ndarray):
+    iterations = rect_verts.shape[0]
+    indices = np.zeros((iterations, 4), dtype='f4')
+
+    for i in range(iterations):
+        indices[i] = sort_rectangle_verts(rect_verts[i])
+
+    return indices
