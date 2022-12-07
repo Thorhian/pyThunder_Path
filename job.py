@@ -361,8 +361,8 @@ class Job:
         currentLoc = startLoc
         locations = np.array([currentLoc * self.target_res])
         emptyCounter = 0
-        easing_factor = 5
-        lower_bound_per = 0.66
+        easing_factor = 12
+        lower_bound_per = 0.85
         for i in range(20000):
             if currentLoc[0] < 0 or currentLoc[0] > self.img_res[0]:
                 print("Outside X Image Bounds")
@@ -467,7 +467,7 @@ class Job:
         current_island = worker.island_list[0][2]
 
         #Generate Paths for an additive slice
-        for i in range(20):
+        for i in range(600):
             #Initiate Cutting
             cut_moves, _last_dir = self.cutting_move(worker=worker, startLoc=currentLoc, 
                                                      start_dir=current_direction,
@@ -482,7 +482,9 @@ class Job:
             link_locations = worker.find_link_locations(current_island).copy()
             image = Image.fromarray(link_locations)
             image.save(f"./renders/linkData{i:08d}.png")
-            link_coords = na.search_link_points(link_locations, currentLoc).astype('int32')
+            link_coords = na.search_link_points(link_locations, np.flip(currentLoc)).astype('int32')
+            print(f"Current Coords before Link: {currentLoc}")
+            print(f"Potential Link Coords: {np.flip(link_coords)}") 
 
             bool_array = link_coords == np.array([-1, -1])
             found_direction = False
@@ -520,7 +522,7 @@ class Job:
                     continue
 
                 #Check if chosen link movement needs to retract
-                currentLoc = link_coords
+                currentLoc = np.flip(link_coords)
                 stats = worker.check_cut(np.flip(currentLoc), np.flip(link_coords), tool_radius)
                 if stats[0] < 1 and stats[1] < 1:
                     locations.append((1, currentLoc * self.target_res))
@@ -529,7 +531,7 @@ class Job:
 
                 print(f"Seed Cut")
                 print(f"Current Loc: {currentLoc}\nSeed Cut: {seed_cut_loc}")
-                worker.make_cut(np.flip(currentLoc), seed_cut_loc, tool_radius)
+                worker.make_cut(np.flip(currentLoc), np.flip(seed_cut_loc), tool_radius)
                 currentLoc = seed_cut_loc
                 locations.append((0, [currentLoc * self.target_res]))
                 break

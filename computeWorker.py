@@ -274,7 +274,7 @@ class ComputeWorker:
 
         link_locations = np.frombuffer(self.island_fbo.read(components=4, dtype='f1'), dtype='u1')
         link_locations = np.reshape(link_locations, (self.image_res[1], self.image_res[0], 4))
-        return np.flip(link_locations, 0)
+        return link_locations
 
     def retrieve_image(self):
         image = np.frombuffer(self.image_buffer.read(), dtype='u1')
