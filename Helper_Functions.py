@@ -86,24 +86,28 @@ def check_point_in_circle(circ_center, radius, pixel_coord):
         return False
 
 def gen_test_gcode(array):
+    if len(array) < 1:
+        raise Exception("Location list is empty, no Gcode to output.")
+
     gcode_file = open("testGcode.ngc", "w")
 
     gcode_file.write("G21\nG0 X0 Y0 Z10\n")
-    gcode_file.write(f"G0 X{array[0][1][0][0]} Y{array[0][1][0][1]} Z10\n")
-    for link in array:
-        gcode = ""
-        if link[0] == 0:
-            for coord in link[1]:
-                gcode = f"G1 F600 X{coord[0]} Y{coord[1]} Z0\n"
+    for layer in array:
+        #gcode_file.write(f"G0 X{layer[0][1][0][0]} Y{layer[0][1][0][1]} Z10\n")
+        for link in layer:
+            gcode = ""
+            if link[0] == 0:
+                for coord in link[1]:
+                    gcode = f"G1 F600 X{coord[0]} Y{coord[1]} Z0\n"
+                    gcode_file.write(gcode)
+            elif link[0] == 1:
+                coord = link[1]
+                gcode = f"G0 X{coord[0]} Y{coord[1]} Z0\n"
                 gcode_file.write(gcode)
-        elif link[0] == 1:
-            coord = link[1]
-            gcode = f"G0 X{coord[0]} Y{coord[1]} Z0\n"
-            gcode_file.write(gcode)
-        elif link[0] == 2:
-            coord = link[1]
-            gcode = f"G0 Z10\nG0 X{coord[0]} Y{coord[1]}\nG0 Z0\n"
-            gcode_file.write(gcode)
+            elif link[0] == 2:
+                coord = link[1]
+                gcode = f"G0 Z10\nG0 X{coord[0]} Y{coord[1]}\nG0 Z0\n"
+                gcode_file.write(gcode)
 
     gcode_file.write("M2\n")
     gcode_file.close()

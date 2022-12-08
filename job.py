@@ -371,11 +371,11 @@ class Job:
                 print("Outside Y Image Bounds")
                 break
 
-            #image = Image.fromarray(worker.retrieve_image())
-            #image.save(f"./renders/testCut{i:08d}.png")
+            image = Image.fromarray(worker.retrieve_image())
+            image.save(f"./renders/testCut{i:08d}.png")
 
-            if i % 1000 == 0:
-                print(f"Iteration: {i}")
+            #if i % 1000 == 0:
+            #print(f"Iteration: {i}")
 
             candidates = self.checkCuts(worker, currentLoc,
                                         direction=current_direction,
@@ -440,7 +440,7 @@ class Job:
                             break
 
                 if not madeCut:
-                    print("Failed to find valid cutting move.")
+                    #print("Failed to find valid cutting move.")
                     break
 
         return locations, current_direction
@@ -452,92 +452,133 @@ class Job:
             return -1
 
         image_count = len(self.d_model.images)
-        img_center = np.array([self.img_res[0] / 2, self.img_res[1] / 2])
-        offset = np.array([0, 100])
-        bore_coord = img_center + offset
-        tool_radius = self.tool_diam / 2 / self.target_res
-        worker: ComputeWorker = ComputeWorker(self.target_res, self.d_model.images[image_count - 1], self.img_res, self.tool_diam)
+        image = self.d_model.images[image_count - 2]
 
-        print(f"Image Center: {img_center}")
-        worker.make_cut(np.flip(bore_coord), np.flip(bore_coord) + 0.1, (self.tool_diam * 1.5) / self.target_res)
+        locations = []
+        locations.append(self.process_layer(image, dist_inc, material_removal_ratio))
+
+
+        return locations
+
+
+
+    def process_layer(self, image, dist_inc = 2.0, material_removal_ratio = 0.2):
+        tool_radius = self.tool_diam / 2 / self.target_res
+        worker: ComputeWorker = ComputeWorker(self.target_res, image, self.img_res, self.tool_diam)
         self.ctx.finish()
-        currentLoc = bore_coord + np.array([7.0 / self.target_res, 0])
+        currentLoc = np.array([0.0, 0.0])
         current_direction = 0.0
         locations = []
         current_island = worker.island_list[0][2]
+        try:
+            (new_direction, link_locs) = self.navigate_link(worker, current_island,
+                                                                tool_radius, dist_inc,
+                                                                material_removal_ratio,
+                                                                currentLoc)
+        except:
+            raise Exception("No paths could be generated for this layer.")
+
+        for move in link_locs:
+            locations.append(move)
+        
+        currentLoc = locations[-1][-1][-1] / self.target_res
+        current_direction = new_direction
 
         #Generate Paths for an additive slice
-        for i in range(600):
+        layer_completed = False
+        for i in range(10):
+            if i % 100 == 0:
+                print(f"Link Iteration: {i}")
             #Initiate Cutting
             cut_moves, _last_dir = self.cutting_move(worker=worker, startLoc=currentLoc, 
                                                      start_dir=current_direction,
                                                      dist_inc=dist_inc,
                                                      material_removal_ratio=0.2)
             locations.append((0, cut_moves))
+            before_cut_loc = currentLoc
             currentLoc = cut_moves[-1] / self.target_res
 
-            image = Image.fromarray(worker.retrieve_image())
-            image.save(f"./renders/testCut{i:08d}.png")
-            #Determine Link Point to Continue Cutting
-            link_locations = worker.find_link_locations(current_island).copy()
-            image = Image.fromarray(link_locations)
-            image.save(f"./renders/linkData{i:08d}.png")
-            link_coords = na.search_link_points(link_locations, np.flip(currentLoc)).astype('int32')
-            print(f"Current Coords before Link: {currentLoc}")
-            print(f"Potential Link Coords: {np.flip(link_coords)}") 
+            try:
+                (current_direction, link_locs) = self.navigate_link(worker, current_island,
+                                                                    tool_radius, dist_inc,
+                                                                    material_removal_ratio,
+                                                                    before_cut_loc)
+                for move in link_locs:
+                    locations.append(move)
 
-            bool_array = link_coords == np.array([-1, -1])
-            found_direction = False
-            seed_cut_loc = np.array([-1, -1])
-            while not np.any(bool_array):
+                currentLoc = locations[-1][-1][-1] / self.target_res
+                current_direction = new_direction
+            except Exception as error:
+                print(error)
+                print("Layer is complete")
+                print(i)
+                layer_completed = True
 
-                #Determine direction to start in
-                candidates = self.checkCuts(worker, np.flip(link_coords),
-                                            direction=0.0,
-                                            tool_rad=tool_radius,
-                                            deg_inc=1.0,
-                                            iterations=360,
-                                            distance=dist_inc / self.target_res,
-                                            clockwiseScan=False)
 
-                found_direction = False
-                for i, candidate in enumerate(candidates[1][:, :]):
-                    if candidate[0] < 1 and candidate[1] < 1:
-                        ratio = 0.0
-                        if candidate[3] < 1: #If no empty space, ratio is 1.0
-                            ratio = 1.0
-                        else:
-                            ratio = candidate[2] / candidate[3]
-                        if ratio < material_removal_ratio and ratio > 0.00001:
-                            seed_cut_loc = candidates[0][i]
-                            current_direction = candidates[2][i]
-                            found_direction = True
-                            break
-
-                if not found_direction:
-                    link_locations[link_coords[0]][link_coords[1]][1] = 0
-                    link_locations[link_coords[0]][link_coords[1]][3] = 0
-                    link_coords = na.search_link_points(link_locations, currentLoc).astype('int32')
-                    bool_array = link_coords == np.array([-1, -1])
-                    continue
-
-                #Check if chosen link movement needs to retract
-                currentLoc = np.flip(link_coords)
-                stats = worker.check_cut(np.flip(currentLoc), np.flip(link_coords), tool_radius)
-                if stats[0] < 1 and stats[1] < 1:
-                    locations.append((1, currentLoc * self.target_res))
-                else:
-                    locations.append((2, currentLoc * self.target_res))
-
-                print(f"Seed Cut")
-                print(f"Current Loc: {currentLoc}\nSeed Cut: {seed_cut_loc}")
-                worker.make_cut(np.flip(currentLoc), np.flip(seed_cut_loc), tool_radius)
-                currentLoc = seed_cut_loc
-                locations.append((0, [currentLoc * self.target_res]))
-                break
-
-            if not found_direction:
-                print(f"No link locations could be found, ending layer")
+            if layer_completed:
                 break
 
         return locations
+
+    def navigate_link(self, worker, current_island,
+                      tool_radius, dist_inc,
+                      material_removal_ratio,
+                      origin_loc):
+        link_locations = worker.find_link_locations(current_island).copy()
+        link_coords = na.search_link_points(link_locations, np.flip(origin_loc)).astype('int32')
+        bool_array = link_coords == np.array([-1, -1])
+        seed_cut_loc = np.array([-1, -1])
+        current_direction = -1.0
+        locations = []
+        counter = 0
+        while not np.any(bool_array):
+            found_direction = False
+            #Determine direction to start in
+            #image = Image.fromarray(link_locations)
+            #image.save(f"./renders/linkData{counter:08d}.png")
+            candidates = self.checkCuts(worker, np.flip(link_coords),
+                                        direction=0.0,
+                                        tool_rad=tool_radius,
+                                        deg_inc=1.0,
+                                        iterations=360,
+                                        distance=dist_inc / self.target_res,
+                                        clockwiseScan=False)
+
+            for i, candidate in enumerate(candidates[1][:, :]):
+                if candidate[0] < 1 and candidate[1] < 1:
+                    ratio = 0.0
+                    if candidate[3] < 1: #If no empty space, ratio is 1.0
+                        ratio = 1.0
+                    else:
+                        ratio = candidate[2] / candidate[3]
+                    if ratio < material_removal_ratio and ratio > 0.00001:
+                        seed_cut_loc = candidates[0][i]
+                        current_direction = candidates[2][i]
+                        found_direction = True
+                        break
+
+            if not found_direction:
+                link_locations[link_coords[0]][link_coords[1]][1] = 0
+                link_locations[link_coords[0]][link_coords[1]][3] = 0
+                link_coords = na.search_link_points(link_locations, origin_loc).astype('int32')
+                bool_array = link_coords == np.array([-1, -1])
+                counter += 1
+                continue
+
+            #Check if chosen link movement needs to retract
+            currentLoc = np.flip(link_coords)
+            stats = worker.check_cut(np.flip(currentLoc), np.flip(link_coords), tool_radius)
+            if stats[0] < 1 and stats[1] < 1:
+                locations.append((1, currentLoc * self.target_res))
+            else:
+                locations.append((2, currentLoc * self.target_res))
+
+            worker.make_cut(np.flip(currentLoc), np.flip(seed_cut_loc), tool_radius)
+            currentLoc = seed_cut_loc
+            locations.append((0, [currentLoc * self.target_res]))
+            break
+
+        if np.any(bool_array):
+            raise Exception("Cannot Find a new link location.")
+
+        return (current_direction, locations)
