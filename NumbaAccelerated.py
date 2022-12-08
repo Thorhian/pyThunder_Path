@@ -17,7 +17,7 @@ def search_link_points(link_points : np.ndarray, current_loc):
     for i in range(bounds[0]):
         for j in range(bounds[1]):
             current_pix = link_points[i][j]
-            is_link_loc = current_pix[3] > 250
+            is_link_loc = current_pix[3] > 250 and current_pix[1] > 250
             if not is_link_loc:
                 continue
 
