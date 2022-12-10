@@ -242,6 +242,7 @@ class Job:
         '''
         current_depth = 0.0
         model_depth = np.abs(self.bounds[5] - self.bounds[4])
+        stock_top = self.bounds[5]
         print(f"Model Depth:{model_depth}")
 
         while current_depth <= model_depth:
@@ -256,14 +257,14 @@ class Job:
             self.render()
             result_image = self.fbo3.read(components=4, dtype='f1')
             stock_only = self.stock_only_buffer.read()
-            self.d_model.add_layer((result_image, stock_only), current_depth)
+            self.d_model.add_layer((result_image, stock_only), stock_top - current_depth)
 
         if current_depth != model_depth:
             self.change_ortho_matrix(model_depth)
             self.render()
             result_image = self.fbo3.read(components=4, dtype='f1')
             stock_only = self.stock_only_buffer.read()
-            self.d_model.add_layer((result_image, stock_only), current_depth)
+            self.d_model.add_layer((result_image, stock_only), stock_top - current_depth)
 
     def save_images(self):
         if not os.path.exists("renders"):
@@ -350,7 +351,8 @@ class Job:
 
         return count
 
-    def cutting_move(self, worker, startLoc, start_dir = 0.0, dist_inc = 2.0,
+    def cutting_move(self, worker, startLoc,
+                     start_dir = 0.0, dist_inc = 2.0,
                      material_removal_ratio = 0.2):
         distance = dist_inc
         distance_adjusted = distance / self.target_res
@@ -361,7 +363,7 @@ class Job:
         currentLoc = startLoc
         locations = np.array([currentLoc * self.target_res])
         emptyCounter = 0
-        easing_factor = 12
+        easing_factor = 6
         lower_bound_per = 0.85
         for i in range(20000):
             if currentLoc[0] < 0 or currentLoc[0] > self.img_res[0]:
@@ -452,10 +454,15 @@ class Job:
             return -1
 
         image_count = len(self.d_model.images)
+        depths = self.d_model.heights
+        print(depths)
         image = self.d_model.images[image_count - 2]
 
         locations = []
-        locations.append(self.process_layer(image, dist_inc, material_removal_ratio))
+        for i, image in enumerate(self.d_model.images):
+            locations.append((self.process_layer(image, dist_inc,
+                                                 material_removal_ratio),
+                              depths[i]))
 
 
         return locations
@@ -496,13 +503,14 @@ class Job:
                                                      material_removal_ratio=0.2)
             locations.append((0, cut_moves))
             before_cut_loc = currentLoc
+            print(f"Before Cut Loc: {before_cut_loc * self.target_res}")
             currentLoc = cut_moves[-1] / self.target_res
 
             try:
                 (current_direction, link_locs) = self.navigate_link(worker, current_island,
                                                                     tool_radius, dist_inc,
                                                                     material_removal_ratio,
-                                                                    before_cut_loc)
+                                                                    currentLoc)
                 for move in link_locs:
                     locations.append(move)
 
@@ -530,7 +538,6 @@ class Job:
         seed_cut_loc = np.array([-1, -1])
         current_direction = -1.0
         locations = []
-        counter = 0
         while not np.any(bool_array):
             found_direction = False
             #Determine direction to start in
@@ -562,18 +569,25 @@ class Job:
                 link_locations[link_coords[0]][link_coords[1]][3] = 0
                 link_coords = na.search_link_points(link_locations, origin_loc).astype('int32')
                 bool_array = link_coords == np.array([-1, -1])
-                counter += 1
                 continue
 
             #Check if chosen link movement needs to retract
-            currentLoc = np.flip(link_coords)
+            currentLoc = origin_loc
+            print(f"Target Res: {self.target_res}")
+            print(f"Current Location: {currentLoc * self.target_res}")
+            print(f"Current Link Location: {link_coords * self.target_res}")
+            print(f"Next Seed Coordinate: {seed_cut_loc * self.target_res}")
             stats = worker.check_cut(np.flip(currentLoc), np.flip(link_coords), tool_radius)
-            if stats[0] < 1 and stats[1] < 1:
+            currentLoc = np.flip(link_coords)
+            print(f"Link Stats: {stats}")
+            if stats[0] < 1 and stats[1] < 1 and stats[2] < 1:
                 locations.append((1, currentLoc * self.target_res))
             else:
                 locations.append((2, currentLoc * self.target_res))
 
             worker.make_cut(np.flip(currentLoc), np.flip(seed_cut_loc), tool_radius)
+            img = Image.fromarray(worker.retrieve_image())
+            img.save(f"./renders/beforeException.png")
             currentLoc = seed_cut_loc
             locations.append((0, [currentLoc * self.target_res]))
             break

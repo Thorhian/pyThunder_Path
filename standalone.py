@@ -45,7 +45,9 @@ def generate_paths():
     newJob.render_layers(depth_of_cut)
     newJob.save_images()
     paths = newJob.generate_paths(dist_inc=2.0, material_removal_ratio=0.4)
-    hf.gen_test_gcode(paths)
+    stock_height = newJob.bounds[-1]
+    retract_height = 10 + stock_height
+    hf.gen_test_gcode(paths, retract_height)
 
 if isDebugModeOn:
     cProfile.run('generate_paths()', filename='stats')

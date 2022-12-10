@@ -20,23 +20,36 @@ def new_job_process(in_queue : multiprocessing.Queue,
                   debug=True)
 
     new_job.render_layers(depth_of_cut)
-    path_data = new_job.generate_paths()
-    #new_job.save_images()
+    path_data = new_job.generate_paths(dist_inc=2.0, material_removal_ratio=0.4)
+    stock_height = new_job.bounds[-1]
+    retract_height = 10 + stock_height
+    response_message = {"safe_retract": retract_height}
     response_data = []
 
-    for path_chain in path_data:
-        match path_chain[0]:
-            case 0:
-                converted_chain = [0, path_chain[1].tolist()]
-                response_data.append(converted_chain)
-            case 1:
-                converted_chain = [1, path_chain[1].tolist()]
-                response_data.append(converted_chain)
-            case 2:
-                converted_chain = [2, path_chain[1].tolist()]
-                response_data.append(converted_chain)
-            case _:
-                pass
+    for layer, height in path_data: 
+        layer_chains = []
+        for path_chain in layer:
+            match path_chain[0]:
+                case 0:
+                    cut_chain = []
+                    for cut_move in path_chain[1]:
+                        converted_chain = cut_move.tolist()
+                        cut_chain.append(converted_chain)
+                    layer_chains.append([0, cut_chain])
+                case 1:
+                    converted_chain = [1, path_chain[1].tolist()]
+                    layer_chains.append(converted_chain)
+                case 2:
+                    converted_chain = [2, path_chain[1].tolist()]
+                    layer_chains.append(converted_chain)
+                case _:
+                    pass
 
-    out_queue.put(response_data)
+        
+        response_data.append([layer_chains, height])
+        print(layer_chains[0])
+
+    response_message['tool_paths'] = response_data
+
+    out_queue.put(response_message)
     print(f"Ending Job Process")
