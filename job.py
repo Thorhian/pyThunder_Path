@@ -23,7 +23,8 @@ class Job:
     '''
 
     def __init__(self, target_model, stock_model, obstacles: list,
-                 tool_diam: float, target_res: float = 0.1, debug = False):
+                 tool_diam: float, target_res: float = 0.1,
+                 offset_coord = [0, 0, 0], debug = False):
         self.target_model = target_model
         self.stock_model = stock_model
         self.obstacles = obstacles
@@ -33,6 +34,7 @@ class Job:
         self.ctx = moderngl.create_standalone_context()
         self.bounds = self.calculate_bounds()
         self.img_res = self.calculate_resolution(self.bounds)
+        self.offset = np.array(offset_coord)
         
         if self.debug:
             self.api = RenderDocAPI()
@@ -375,6 +377,7 @@ class Job:
 
             image = Image.fromarray(worker.retrieve_image())
             image.save(f"./renders/testCut{i:08d}.png")
+            x_y_offset = self.offset[0:2]
 
             #if i % 1000 == 0:
             #print(f"Iteration: {i}")
@@ -405,7 +408,7 @@ class Job:
                         current_direction = candidates[2][i]
                         currentLoc = new_loc
                         madeCut = True
-                        locations = np.append(locations, [currentLoc * self.target_res], axis=0)
+                        locations = np.append(locations, [(currentLoc + x_y_offset) * self.target_res], axis=0)
                         if ratio < 0.01:
                             emptyCounter += 1
                         break
@@ -436,7 +439,7 @@ class Job:
                             current_direction = candidates[2][i]
                             currentLoc = new_loc
                             madeCut = True
-                            locations = np.append(locations, [currentLoc * self.target_res], axis=0)
+                            locations = np.append(locations, [(currentLoc + x_y_offset) * self.target_res], axis=0)
                             if ratio < 0.01:
                                 emptyCounter += 1
                             break
@@ -579,17 +582,18 @@ class Job:
             print(f"Next Seed Coordinate: {seed_cut_loc * self.target_res}")
             stats = worker.check_cut(np.flip(currentLoc), np.flip(link_coords), tool_radius)
             currentLoc = np.flip(link_coords)
+            x_y_offset = self.offset[0:2]
             print(f"Link Stats: {stats}")
             if stats[0] < 1 and stats[1] < 1 and stats[2] < 1:
-                locations.append((1, currentLoc * self.target_res))
+                locations.append((1, (currentLoc + x_y_offset) * self.target_res))
             else:
-                locations.append((2, currentLoc * self.target_res))
+                locations.append((2, (currentLoc + x_y_offset) * self.target_res))
 
             worker.make_cut(np.flip(currentLoc), np.flip(seed_cut_loc), tool_radius)
             img = Image.fromarray(worker.retrieve_image())
             img.save(f"./renders/beforeException.png")
             currentLoc = seed_cut_loc
-            locations.append((0, [currentLoc * self.target_res]))
+            locations.append((0, [(currentLoc + x_y_offset) * self.target_res]))
             break
 
         if np.any(bool_array):

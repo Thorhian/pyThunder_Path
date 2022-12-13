@@ -17,10 +17,12 @@ def new_job_process(in_queue : multiprocessing.Queue,
 
     new_job = Job(target_verts, stock_verts, [],
                   tool_diameter, target_res=target_res,
+                  offset_coord=origin_point,
                   debug=True)
 
     new_job.render_layers(depth_of_cut)
     path_data = new_job.generate_paths(dist_inc=2.0, material_removal_ratio=0.4)
+    new_job.save_images()
     stock_height = new_job.bounds[-1]
     retract_height = 10 + stock_height
     response_message = {"safe_retract": retract_height}
@@ -50,6 +52,7 @@ def new_job_process(in_queue : multiprocessing.Queue,
         print(layer_chains[0])
 
     response_message['tool_paths'] = response_data
+    response_message['job_name'] = job_name
 
     out_queue.put(response_message)
     print(f"Ending Job Process")

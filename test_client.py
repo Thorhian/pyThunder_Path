@@ -41,6 +41,10 @@ stock_mesh = mesh.Mesh.from_file(stlStockModel, speedups=False)
 
 depth_of_cut = float(sys.argv[3])
 tool_diameter = float(sys.argv[4])
+x_coord = float(sys.argv[5])
+y_coord = float(sys.argv[6])
+z_coord = float(sys.argv[7])
+offset_coord = [x_coord, y_coord, z_coord]
 
 try:
     while True:
@@ -65,7 +69,7 @@ try:
                 "stock_normals": stock_normals.tolist(),
                 "tool_diameter": tool_diameter,
                 "depth_of_cut": depth_of_cut,
-                "origin_point": [0.0, 0.0],
+                "origin_point": offset_coord,
             }
             msg_json = json.dumps(msg).encode('utf-8')
             msg_json_size = len(msg_json)

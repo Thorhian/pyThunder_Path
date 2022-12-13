@@ -68,7 +68,7 @@ class ComputeWorker:
         count_program = hf.load_shader("./shaders/count_colors.glsl")
         self.counter_compute: moderngl.ComputeShader = self.ctx.compute_shader(count_program)
         self.image_buffer = self.ctx.texture(self.image_res, 4)
-        self.image_buffer.write(target_buffer)
+        self.image_buffer.write(self.initial_state.read())
         target_buffer.release()
         self.depthBuffer = self.ctx.depth_texture(self.image_res)
         self.image_buffer.bind_to_image(1)
