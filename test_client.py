@@ -41,6 +41,10 @@ stock_mesh = mesh.Mesh.from_file(stlStockModel, speedups=False)
 
 depth_of_cut = float(sys.argv[3])
 tool_diameter = float(sys.argv[4])
+x_coord = float(sys.argv[5])
+y_coord = float(sys.argv[6])
+z_coord = float(sys.argv[7])
+offset_coord = [x_coord, y_coord, z_coord]
 
 try:
     while True:
@@ -65,7 +69,7 @@ try:
                 "stock_normals": stock_normals.tolist(),
                 "tool_diameter": tool_diameter,
                 "depth_of_cut": depth_of_cut,
-                "origin_point": [0.0, 0.0],
+                "origin_point": offset_coord,
             }
             msg_json = json.dumps(msg).encode('utf-8')
             msg_json_size = len(msg_json)
@@ -90,24 +94,42 @@ try:
                 path_data += chunk
 
                 if len(path_data) - HEADERSIZE == msglen:
-                    path_data = json.loads(path_data[HEADERSIZE:].decode('utf-8'))
-                    finished_paths = []
-                    for path_chain in path_data:
-                        match path_chain[0]:
-                            case 0:
-                                converted_chain = (0, np.array(path_chain[1]))
-                                finished_paths.append(converted_chain)
-                            case 1:
-                                converted_chain = (1, np.array(path_chain[1]))
-                                finished_paths.append(converted_chain)
-                            case 2:
-                                converted_chain = (2, np.array(path_chain[1]))
-                                finished_paths.append(converted_chain)
-                            case _:
-                                pass
+                    path_message = json.loads(path_data[HEADERSIZE:].decode('utf-8'))
+                    path_data = []
+                    safe_retract = 0.0
+                    if 'tool_paths' in path_message:
+                        path_data = path_message['tool_paths']
+                    else:
+                        raise Exception(f"No paths returned")
+                    if 'safe_retract' in path_message:
+                        safe_retract = path_message['safe_retract']
+                    else:
+                        raise Exception(f"No retract height returned")
 
-                    print(finished_paths)
-                    hf.gen_test_gcode(finished_paths)
+                    finished_paths = []
+                    for layer, height in path_data:
+                        print(f"Height: {height}")
+                        print(f"First Link: {layer[0]}")
+                        layer_chains = []
+                        for path_chain in layer:
+                            match path_chain[0]:
+                                case 0:
+                                    cut_chain = []
+                                    for cut_move in path_chain[1]:
+                                        converted_chain = np.array(cut_move)
+                                        cut_chain.append(converted_chain)
+                                    layer_chains.append((0, cut_chain))
+                                case 1:
+                                    converted_chain = (1, np.array(path_chain[1]))
+                                    layer_chains.append(converted_chain)
+                                case 2:
+                                    converted_chain = (2, np.array(path_chain[1]))
+                                    layer_chains.append(converted_chain)
+                                case _:
+                                    pass
+                        finished_paths.append((layer_chains, height))
+
+                    hf.gen_test_gcode(finished_paths, safe_retract)
                     break
 
         else:

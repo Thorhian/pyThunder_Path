@@ -11,6 +11,8 @@ uniform float circleRadius;
 uniform mat4x2 quadPoints;
 uniform ivec4   quadIndices;
 
+uniform bool treatGreenAsRed = false;
+
 bool isInsideCircle(float radius, vec2 centerCoords, ivec2 pixelCoords) {
     float leftSide = pow(pixelCoords.x - centerCoords.x, 2) +
         pow(pixelCoords.y - centerCoords.y, 2);
@@ -62,6 +64,8 @@ void main() {
             atomicAdd(cIn.counters[0], 1); //Model Pixel
         } else if (texColor.r >= 0.98 && texColor.g < 0.9) {
             atomicAdd(cIn.counters[1], 1); //Obstacle Pixel
+        } else if (treatGreenAsRed && texColor.g > 0.9) {
+            atomicAdd(cIn.counters[1], 1);
         } else {
             atomicAdd(cIn.counters[2], 1); //Stock Pixel
         }

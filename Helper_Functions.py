@@ -85,25 +85,48 @@ def check_point_in_circle(circ_center, radius, pixel_coord):
     else:
         return False
 
-def gen_test_gcode(array):
+def gen_test_gcode(array, retract_height):
+    if len(array) < 1:
+        raise Exception("Location list is empty, no Gcode to output.")
+
     gcode_file = open("testGcode.ngc", "w")
 
-    gcode_file.write("G21\nG0 X0 Y0 Z10\n")
-    gcode_file.write(f"G0 X{array[0][1][0][0]} Y{array[0][1][0][1]} Z10\n")
-    for link in array:
-        gcode = ""
-        if link[0] == 0:
-            for coord in link[1]:
-                gcode = f"G1 F600 X{coord[0]} Y{coord[1]} Z0\n"
+    gcode_file.write(f"G21\nG0 Z{retract_height}\n")
+
+    for layer, height in array:
+        first_move = layer[0]
+        first_coords = []
+        print(first_move)
+        match first_move[0]:
+            case 0:
+                first_coords = first_move[1][0]
+            case 1:
+                first_coords = first_move[1]
+            case 2:
+                first_coords = first_move[1]
+            case _:
+                first_coords = []
+
+        if len(first_coords) < 2 or len(first_coords) > 2:
+            raise Exception("Malformed Paths Found in test_gcode")
+
+        gcode_file.write(f"G0 Z{retract_height}\n")
+        gcode_file.write(f"G0 X{first_coords[0]} Y{first_coords[1]}\n")
+        
+        for link in layer:
+            gcode = ""
+            if link[0] == 0:
+                for coord in link[1]:
+                    gcode = f"G1 F600 X{coord[0]} Y{coord[1]} Z{height}\n"
+                    gcode_file.write(gcode)
+            elif link[0] == 1:
+                coord = link[1]
+                gcode = f"G0 X{coord[0]} Y{coord[1]} Z{height}\n"
                 gcode_file.write(gcode)
-        elif link[0] == 1:
-            coord = link[1]
-            gcode = f"G0 X{coord[0]} Y{coord[1]} Z0\n"
-            gcode_file.write(gcode)
-        elif link[0] == 2:
-            coord = link[1]
-            gcode = f"G0 Z10\nG0 X{coord[0]} Y{coord[1]}\nG0 Z0\n"
-            gcode_file.write(gcode)
+            elif link[0] == 2:
+                coord = link[1]
+                gcode = f"G0 Z{retract_height}\nG0 X{coord[0]} Y{coord[1]}\nG0 Z{height}\n"
+                gcode_file.write(gcode)
 
     gcode_file.write("M2\n")
     gcode_file.close()

@@ -4,9 +4,10 @@
 uniform sampler2D imageSlice;
 uniform sampler2D mask;
 uniform float circleRadius;
+uniform bool ignoreMargin = true;
 
 #define PI 3.1415926538
-#define PROX 2.0
+#define PROX 1.5
 
 out vec4 outColor;
 
@@ -42,39 +43,11 @@ void main() {
 
                 if (isInsideCircle(circleRadius, pixelCoords, currentCoords)
                     && currentPix.a > 0.9) {
-
+                    
+                    tempColor = vec4(1.0, 0.0, 0.0, 1.0);
                     isDone = true;
                     break;
                 }
-                /*
-                if (isInsideCircle(circleRadius, pixelCoords, currentCoords)
-                    && currentPix.a > 0.9) {
-                    isDone = true;
-                    break;
-                }
-
-
-                if (maskValue > 0.9 && currentPix.b < 0.1) {
-                    break;
-                }*/
-
-                /*if (
-                    currentPix.a > 0.9 &&
-                    currentPix.b < 0.1 &&
-                    (currentPix.r < 0.1 && currentPix.g < 0.1) &&
-                    !isInsideCircle(circleRadius, pixelCoords, currentCoords)
-                ) {
-                    if (isInsideCircle(circleRadius, pixelCoords, currentCoords)) {
-
-                    }
-                    bool isGoldilocks = isInsideCircle(circleRadius + PROX_TOLERANCE,
-                                                       pixelCoords, currentCoords);
-                    if (!isGoldilocks) {
-                        tempColor = vec4(0.0, 0.0, 1.0, 1.0);
-                        break;
-                    }
-                }*/
-
             }
             if (isDone) {
                 break;
@@ -85,6 +58,8 @@ void main() {
     }
 
     if (!isDone) {
+        bool notFound = true;
+        boundingBox = getBoundingBox(circleRadius + PROX, pixelCoords);
         for(int x = boundingBox[2]; x < boundingBox[3]; x += 1) {
             for(int y = boundingBox[0]; y > boundingBox[1]; y -= 1) {
 
@@ -96,18 +71,27 @@ void main() {
                     currentPix.a > 0.9 &&
                     maskValue > 0.9) {
 
-                    ivec2 direction = pixelCoords - currentCoords;
+                    if(ignoreMargin && currentPix.g > 0.9) {
+                        continue;
+                    }
+
+                    //ivec2 direction = pixelCoords - currentCoords;
                     
-                    float theta = atan(direction.x / direction.y);
-                    if (direction.x < 0) {
+                    //float theta = atan(direction.x / direction.y);
+                    /*if (direction.x < 0) {
                         theta = theta + PI;
                     }
                     theta = theta / (PI * 2);
-                    tempColor = vec4(0.0, theta, 0.0, 1.0);
+                    tempColor = vec4(0.0, theta, 0.0, 1.0);*/
+                    tempColor = vec4(0.0, 1.0, 0.0, 1.0);
+                    notFound = false;
                     break;
                 }
 
             }
+        }
+        if(notFound) {
+            tempColor = vec4(0.0, 0.0, 1.0, 1.0);
         }
     }
 
