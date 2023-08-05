@@ -13,6 +13,8 @@ pyflakes = "*"
 memory-profiler = "*"
 opencv-python = "*"
 numba = "*"
+setuptools = "*"
+scipy = "*"
 
 [dev-packages]
 ipython = "*"
